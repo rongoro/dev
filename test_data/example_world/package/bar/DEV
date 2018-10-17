@@ -1,0 +1,4 @@
+[foo]
+runtime: 'foo_image'
+commands.build: 'bar build'
+commands.serve: 'bar serve'
