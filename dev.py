@@ -234,6 +234,7 @@ def get_runtime_depends(runtime_location):
                 print("removing file with bad hash: " + dest_filename)
                 os.remove(dest_filename)
 
+        print("Downloading: ", url)
         urllib.urlretrieve(url, dest_filename)
 
         if (hashfile(dest_filename) != dephash):
