@@ -214,7 +214,8 @@ def get_runtime_depends(runtime_location):
 
     depends = []
 
-    download_dir = os.path.join(runtime_location, '.cache/downloads')
+    output_runtime_location = os.path.join(dev_root(), 'build', 'runtime')
+    download_dir = os.path.join(output_runtime_location, '.cache/downloads')
 
     if (not os.path.exists(download_dir)):
         os.makedirs(download_dir)
@@ -242,7 +243,7 @@ def get_runtime_depends(runtime_location):
 def build_runtime(runtime):
 
     docker_template_filename = os.path.join(dev_root(), 'runtime_configs', 'Dockerfile.' + runtime + '.template')
-    docker_config_output_filename = os.path.join(dev_root(), 'runtime_configs', 'Dockerfile.' + runtime)
+    docker_config_output_filename = os.path.join(dev_root(), 'build', 'runtime', 'Dockerfile.' + runtime)
 
     with open(docker_template_filename) as template:
         output = template.read()
@@ -252,7 +253,7 @@ def build_runtime(runtime):
             outfile.write(parsed_output)
 
     command = (['docker', 'build', '-t', '-'.join([image_name_prefix + runtime])]
-               + ['-f', docker_config_output_filename, os.path.join(dev_root(), 'runtime_configs')])
+               + ['-f', docker_config_output_filename, os.path.dirname(docker_config_output_filename)])
 
     return run_command(command)
 
