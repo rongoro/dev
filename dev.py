@@ -132,7 +132,7 @@ def command_signal_handler(signum, frame):
 
 signal.signal(signal.SIGINT, command_signal_handler)
 
-def run_command(command, replace_current_term=False):
+def run_command(command, replace_current_term=False, capture_output=False):
     print(' '.join(command))
     if replace_current_term:
         os.execv(command[0], command)
@@ -144,13 +144,18 @@ def run_command(command, replace_current_term=False):
 
         running_processes.append(process)
 
+        output = []
         for stdout_line in iter(process.stdout.readline, ""):
-            print(stdout_line, end='')
+            if capture_output:
+                output.append(stdout_line.strip())
+            else:
+                print(stdout_line, end='')
 
         process.stdout.close()
         return_code = process.wait()
         if return_code:
             raise subprocess.CalledProcessError(return_code, command)
+    return output
 
 def find_open_ports():
     for port in range(default_starting_port, default_starting_port+1000):
@@ -404,7 +409,6 @@ def test(args):
 @subcommand([argument('package', default=None, nargs=1, help='package to watch'),])
 def watch(args):
     """Watch dev changes. (example: path/to:package)"""
-    """Build the project"""
 
     full_path, pkg_config = get_pkg_info(args.package[0])
 
@@ -421,6 +425,23 @@ def watch(args):
                            runtime=pkg_config['runtime'])
 
 
+def get_all_dev_containers():
+    command = ('docker', 'ps', '--filter', 'name=%s.*' % default_container_name, '--format', '{{.ID}}')
+    return run_command(command, capture_output=True)
+
+@subcommand()
+def show_running_sandboxes(args):
+    """Show the running sandbox IDs"""
+    for i in get_all_dev_containers():
+        print(i)
+
+
+@subcommand()
+def killall(args):
+    """Kill all the running dev containers"""
+
+    command = ['docker', 'kill'] + get_all_dev_containers()
+    run_command(command)
 
 
 if __name__ == "__main__":
