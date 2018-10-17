@@ -258,7 +258,7 @@ def build_runtime(runtime):
         with open(docker_config_output_filename, 'w') as outfile:
             outfile.write(parsed_output)
 
-    command = (['docker', 'build', '-t', '-'.join([image_name_prefix + runtime])]
+    command = (['docker', 'build', '-t', '-'.join([image_name_prefix, runtime])]
                + ['-f', docker_config_output_filename, os.path.dirname(docker_config_output_filename)])
 
     return run_command(command)
