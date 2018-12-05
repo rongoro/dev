@@ -2,6 +2,10 @@ import dev
 import os
 import subprocess
 import unittest
+import socket
+
+from contextlib import closing
+
 
 test_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
@@ -31,6 +35,14 @@ class LocalRuntimeTests(unittest.TestCase):
     def test_get_ports(self):
         self.assertEqual([30002, 30003, 30004],
                          dev.Runtime.find_open_ports(30002, 3))
+
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+            sock.settimeout(0)
+            free_port = 30002
+            res = sock.bind(('localhost', free_port))
+            self.assertEqual([30003,30004],
+                             dev.Runtime.find_open_ports(30002, 2))
+
 
     def test_local_runtime_setup(self):
         self.assertTrue(dev.Runtime.setup(location=os.path.join(test_data_dir, 'local_runtime_example')))

@@ -64,11 +64,14 @@ class Runtime(object):
         for port in range(start_port, 65535):
             with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
                 sock.settimeout(1)
-                res = sock.connect_ex(('localhost', port))
-                if res in (0, 111):
-                    ports.append(port)
-                    if len(ports) == count:
-                        break
+                try:
+                    res = sock.bind(('localhost', port))
+                except Exception as e:
+                    if e.errno is 98: ## Errorno 98 means address already bound
+                        continue
+            ports.append(port)
+            if len(ports) == count:
+                break
         return ports
 
 
@@ -113,6 +116,6 @@ class DockerRuntime(Runtime):
     def rm_image(image_name):
         output = Runtime.run_command(['docker', 'rmi', '-f', image_name], capture_output=True)
         return output
-    
+
 class DockerHelpers(object):
     pass
