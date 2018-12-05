@@ -15,6 +15,9 @@ from __future__ import print_function
 import ConfigParser
 import subprocess
 import os
+import socket
+
+from contextlib import closing
 
 
 class Repo(object):
@@ -43,32 +46,73 @@ class Repo(object):
         config.read(os.path.join(os.path.dirname(directory), 'DEV'))
 
         return config
-   
 
-class Commands(object):
+
+class Runtime(object):
+
     @staticmethod
-    def run_command(command, replace_current_term=False, capture_output=False):
-        if replace_current_term:
-            os.execv(command[0], command)
+    def setup(location):
+        if not (os.path.exists(os.path.join(location, 'bin'))
+                and os.path.isdir(os.path.join(location, 'bin'))):
+            return False
         else:
-            process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT)
+            return True
 
-            output = []
-            for stdout_line in iter(process.stdout.readline, ""):
-                if capture_output:
-                    output.append(stdout_line.strip())
-                else:
-                    print(stdout_line, end='')
+    @staticmethod
+    def find_open_ports(start_port, count):
+        ports = []
+        for port in range(start_port, 65535):
+            with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+                sock.settimeout(1)
+                res = sock.connect_ex(('localhost', port))
+                if res in (0, 111):
+                    ports.append(port)
+                    if len(ports) == count:
+                        break
+        return ports
 
-            process.stdout.close()
-            return_code = process.wait()
-            if return_code:
-                raise subprocess.CalledProcessError(return_code, command)
+
+    @staticmethod
+    def run_command(command, capture_output=False):
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+
+        output = []
+        for stdout_line in iter(process.stdout.readline, ""):
+            if capture_output:
+                output.append(stdout_line.strip())
+            else:
+                print(stdout_line, end='')
+
+        process.stdout.close()
+        return_code = process.wait()
+        if return_code:
+            raise subprocess.CalledProcessError(return_code, command)
         return output
 
+class DockerRuntime(Runtime):
+    @staticmethod
+    def setup(location, name):
+        output = Runtime.run_command(['docker', 'build', '-t', name, location], capture_output=True)
+        return output[-1].startswith('Successfully tagged ' + name)
 
+    @staticmethod
+    def run_command(name, command, capture_output=False):
+        output = Runtime.run_command(['docker', 'run', '-it', name] + command, capture_output=capture_output)
+        if capture_output == True:
+            return output
+
+    @staticmethod
+    def get_images():
+        output = Runtime.run_command(['docker', 'images'], capture_output=True)
+        return [l.split()[0] for l in output[1:]]
+
+    @staticmethod
+    def rm_image(image_name):
+        output = Runtime.run_command(['docker', 'rmi', '-f', image_name], capture_output=True)
+        return output
+    
 class DockerHelpers(object):
     pass
