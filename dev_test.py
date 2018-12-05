@@ -63,9 +63,6 @@ class DockerRuntimeTests(unittest.TestCase):
 
         self.assertNotIn(self.image_name, dev.DockerRuntime.get_images())
 
-    def get_docker_images(self):
-        docker_images = dev.Runtime.run_command(['docker', 'images'], capture_output=True)
-
     def test_docker_setup(self):
 
         self.assertIn(self.image_name, dev.DockerRuntime.get_images())
