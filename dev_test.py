@@ -54,7 +54,7 @@ class DockerRuntimeTests(unittest.TestCase):
     image_name = "dev_test_image"
 
     def setUp(self):
-        self.assertTrue(dev.DockerRuntime.setup(location=os.path.join(test_data_dir, 'test_root', 'runtimes'), name=self.image_name))
+        self.assertTrue(dev.DockerRuntime.setup(location=os.path.join(test_data_dir, 'test_root', 'runtimes', 'test_runtime'), name=self.image_name))
 
 
     def tearDown(self):
