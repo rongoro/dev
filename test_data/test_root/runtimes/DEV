@@ -1,0 +1,6 @@
+{
+  "test_runtime": {
+    "path": "test_runtime",
+    "commands": { "build": "docker build -t test_runtime ." }
+  }
+}
