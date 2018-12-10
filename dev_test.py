@@ -22,28 +22,6 @@ class DevRepoHelpersTests(unittest.TestCase):
     def test_get_dev_root_not_exist(self):
         self.assertRaises(Exception, dev.Repo.get_dev_root, "/usr/bin")
 
-    def test_get_dev_config(self):
-        self.assertTrue(
-            dev.Repo.get_dev_config(
-                os.path.join(
-                    test_data_dir, "test_root", "world", "example.com", "project_foo"
-                )
-            )
-        )
-
-    def test_get_dev_config_not_exist(self):
-        self.assertRaises(
-            Exception,
-            dev.Repo.get_dev_config,
-            os.path.join(
-                test_data_dir,
-                "test_root",
-                "world",
-                "unconfigured.com",
-                "project_unconifigured",
-            ),
-        )
-
 
 class DevConfigHelpersTest(unittest.TestCase):
     maxDiff = None

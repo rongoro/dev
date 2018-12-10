@@ -41,18 +41,6 @@ class Repo(object):
                 raise Exception("Could not find DEV_ROOT")
             working_dir = os.path.dirname(working_dir)
 
-    @staticmethod
-    def get_dev_config(directory):
-        """Get the Dev configuration for the given package"""
-
-        if not os.path.exists(os.path.join(os.path.dirname(directory), "DEV")):
-            raise Exception("DEV config doesn't exist for %s" % directory)
-
-        config = ConfigParser.SafeConfigParser()
-        config.read(os.path.join(os.path.dirname(directory), "DEV"))
-
-        return config
-
 
 class ConfigHelpers(object):
     @staticmethod
@@ -139,8 +127,9 @@ class ProjectConfig(object):
 
         if "commands" not in full_config[project_name]:
             return []
-            
+
         return full_config[project_name]["commands"]
+
 
 class Runtime(object):
     @staticmethod
