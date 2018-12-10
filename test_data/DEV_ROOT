@@ -1,7 +1,0 @@
-[dev]
-
-runtime.foo.type: docker
-runtime.foo.template: templates/path.to.foo.templates
-
-runtime.bar.type: docker
-runtime.bar.template: templates/path.to.bar.templates
