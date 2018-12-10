@@ -146,13 +146,11 @@ class DockerRuntimeTests(unittest.TestCase):
         )
 
     def tearDown(self):
-
         self.assertTrue(dev.DockerRuntime.rm_image(self.image_name))
 
         self.assertNotIn(self.image_name, dev.DockerRuntime.get_images())
 
     def test_docker_setup(self):
-
         self.assertIn(self.image_name, dev.DockerRuntime.get_images())
 
         # bad path
@@ -164,7 +162,6 @@ class DockerRuntimeTests(unittest.TestCase):
         )
 
     def test_docker_run(self):
-
         self.assertIn(
             'NAME="Alpine Linux"',
             dev.DockerRuntime.run_command(
