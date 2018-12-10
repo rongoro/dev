@@ -1,0 +1,11 @@
+{
+  "project_foo": { "path": "project_foo", "commands": { "build": "echo foo" } },
+  "project_foo_other": {
+    "path": "project_foo",
+    "commands": { "build": "echo foo other" }
+  },
+  "project_bar_no_commands": {
+    "path": "project_bar"
+  },
+  "project_bar": { "path": "project_bar", "commands": { "build": "echo bar" } }
+}

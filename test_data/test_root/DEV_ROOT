@@ -1,0 +1,7 @@
+{
+  "version": "1",
+  "runtimes": {
+    "base": { "type": "docker", "project": "//runtimes:test_runtime" },
+    "bad_runtime": { "type": "docker", "project": "//runtimes:does_not_exist" }
+  }
+}
