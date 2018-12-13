@@ -1,7 +1,12 @@
 {
   "version": "1",
   "runtimes": {
+    "local": { "type": "local", "cwd": "$CWD" },
     "base": { "type": "docker", "project": "//runtimes:test_runtime" },
     "bad_runtime": { "type": "docker", "project": "//runtimes:does_not_exist" }
+  },
+  "project_defaults": {
+    "runtime": "base",
+    "commands": {"build": "bazel build $PROJECTPATH"}
   }
 }

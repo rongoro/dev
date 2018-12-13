@@ -13,11 +13,14 @@ any installation.
 from __future__ import print_function
 
 import ConfigParser
+import copy
 import subprocess
 import os
 import socket
 import json
 import re
+import string
+import shlex
 
 from contextlib import closing
 
@@ -90,6 +93,21 @@ class ProjectConfig(object):
         return project_parent_dir, project_name
 
     @staticmethod
+    def _merge_config_with_default_dict(config, default_dict):
+        new_config = copy.deepcopy(default_dict)
+        for key, value in config.items():
+            if key not in default_dict:
+                new_config[key] = value
+                continue
+            elif isinstance(value, dict):
+                new_config[key] = ProjectConfig._merge_config_with_default_dict(
+                    value, default_dict[key]
+                )
+            else:
+                new_config[key] = value
+        return new_config
+
+    @staticmethod
     def get(dev_tree, project_path):
         project_parent_dir, project_name = ProjectConfig.parse_project_path(
             dev_tree, project_path
@@ -103,11 +121,15 @@ class ProjectConfig(object):
                 "Project %s doesn't exist at %s" % (project_name, project_parent_dir)
             )
 
-        return full_config[project_name]
+        global_config = GlobalConfig.get(dev_tree)
+
+        return ProjectConfig._merge_config_with_default_dict(
+            full_config[project_name], global_config['project_defaults']
+        )
 
     @staticmethod
     def list_projects(dev_tree, project_path):
-        project_parent_dir, project_name = ProjectConfig.parse_project_path(
+        project_parent_dir, _ = ProjectConfig.parse_project_path(
             dev_tree, project_path, require_project_name=False
         )
 
@@ -118,17 +140,47 @@ class ProjectConfig(object):
 
     @staticmethod
     def get_commands(dev_tree, project_path):
+        proj_config = ProjectConfig.get(dev_tree, project_path)
+
+        if "commands" not in proj_config:
+            return {}
+
+        return proj_config["commands"]
+
+    @staticmethod
+    def _build_tmpl_vars(dev_tree, project_path):
         project_parent_dir, project_name = ProjectConfig.parse_project_path(
             dev_tree, project_path
         )
+        config = ProjectConfig.get(dev_tree, project_path)
 
-        with open(os.path.join(project_parent_dir, "DEV")) as f:
-            full_config = json.load(f)
+        vardict = {
+            "CWD": os.path.join(dev_tree, project_parent_dir, config["path"]),
+            "BUILDDIR": os.path.join(
+                dev_tree, "build", project_parent_dir[len(dev_tree) + 1 :], project_name
+            ),
+        }
+        return vardict
 
-        if "commands" not in full_config[project_name]:
-            return []
+    @staticmethod
+    def _render_value(raw_value, tmpl_vars):
+        return string.Template(raw_value).substitute(tmpl_vars)
 
-        return full_config[project_name]["commands"]
+    @staticmethod
+    def run_project_command(dev_tree, project_path, command):
+        proj_commands = ProjectConfig.get_commands(dev_tree, project_path)
+
+        if command not in proj_commands:
+            raise DevRepoException(
+                "Command %s doesn't exist for project %s" % (command, project_path)
+            )
+
+        full_command = ProjectConfig._render_value(
+            proj_commands[command],
+            ProjectConfig._build_tmpl_vars(dev_tree, project_path),
+        )
+
+        return Runtime.run_command(full_command)
 
 
 class Runtime(object):
@@ -159,7 +211,10 @@ class Runtime(object):
         return ports
 
     @staticmethod
-    def run_command(command, capture_output=False):
+    def run_command(command, capture_output=True):
+        if isinstance(command, basestring):
+            command = shlex.split(command)
+
         process = subprocess.Popen(
             command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
@@ -175,6 +230,7 @@ class Runtime(object):
         return_code = process.wait()
         if return_code:
             raise subprocess.CalledProcessError(return_code, command)
+
         return output
 
 

@@ -26,16 +26,50 @@ class DevRepoHelpersTests(unittest.TestCase):
 class DevConfigHelpersTest(unittest.TestCase):
     maxDiff = None
 
+    def test_merge_config_with_default_dict(self):
+        self.assertEqual({}, dev.ProjectConfig._merge_config_with_default_dict({}, {}))
+
+        self.assertEqual(
+            {"foo": "bar"},
+            dev.ProjectConfig._merge_config_with_default_dict({"foo": "bar"}, {}),
+        )
+
+        self.assertEqual(
+            {"foo": "bar", "default": "baz"},
+            dev.ProjectConfig._merge_config_with_default_dict(
+                {"foo": "bar"}, {"default": "baz"}
+            ),
+        )
+
+        self.assertEqual(
+            {"foo": "bar", "baz": {"test": "one"}},
+            dev.ProjectConfig._merge_config_with_default_dict(
+                {"foo": "bar", "baz": {"test": "one"}}, {"baz": {"test": "two"}}
+            ),
+        )
+
+        self.assertEqual(
+            {"foo": "bar", "baz": {"test": "one", "test2": "two"}},
+            dev.ProjectConfig._merge_config_with_default_dict(
+                {"foo": "bar", "baz": {"test": "one"}}, {"baz": {"test2": "two"}}
+            ),
+        )
+
     def test_get_global_config(self):
         self.assertEqual(
             {
                 "version": "1",
                 "runtimes": {
+                    "local": {"type": "local", "cwd": "$CWD"},
                     "base": {"type": "docker", "project": "//runtimes:test_runtime"},
                     "bad_runtime": {
                         "type": "docker",
                         "project": "//runtimes:does_not_exist",
                     },
+                },
+                "project_defaults": {
+                    "runtime": "base",
+                    "commands": {"build": "bazel build $PROJECTPATH"},
                 },
             },
             dev.GlobalConfig.get(test_root),
@@ -43,17 +77,20 @@ class DevConfigHelpersTest(unittest.TestCase):
 
     def test_list_available_runtimes(self):
         self.assertEqual(
-            ["bad_runtime", "base"], dev.GlobalConfig.get_runtimes(test_root)
+            ["bad_runtime", "base", "local"], dev.GlobalConfig.get_runtimes(test_root)
         )
 
     def test_get_project_list(self):
         self.assertEqual(
-            [
-                "project_bar",
-                "project_bar_no_commands",
-                "project_foo",
-                "project_foo_other",
-            ],
+            sorted(
+                [
+                    "project_bar",
+                    "project_bar_no_commands",
+                    "project_bar_var_test",
+                    "project_foo",
+                    "project_foo_other",
+                ]
+            ),
             dev.ProjectConfig.list_projects(test_root, "//world/example.com"),
         )
 
@@ -66,7 +103,7 @@ class DevConfigHelpersTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            [],
+            {"build": "bazel build $PROJECTPATH"},
             dev.ProjectConfig.get_commands(
                 test_root, "//world/example.com:project_bar_no_commands"
             ),
@@ -95,7 +132,11 @@ class DevConfigHelpersTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            {"path": "project_foo", "commands": {"build": "echo foo"}},
+            {
+                "path": "project_foo",
+                "commands": {"build": "echo foo"},
+                "runtime": "base",
+            },
             dev.ProjectConfig.get(test_root, "//world/example.com:project_foo"),
         )
 
@@ -129,6 +170,22 @@ class LocalRuntimeTests(unittest.TestCase):
             dev.Runtime.setup(
                 location=os.path.join(test_data_dir, "local_runtime_example_bad")
             )
+        )
+
+    def test_config_variable_replacing(self):
+        self.assertEqual(
+            "bar %(cwd)s %(builddir)s"
+            % {
+                "builddir": os.path.join(
+                    test_root, "build/world/example.com/project_bar_var_test"
+                ),
+                "cwd": os.path.join(test_root, "world/example.com/project_bar"),
+            },
+            "\n".join(
+                dev.ProjectConfig.run_project_command(
+                    test_root, "//world/example.com:project_bar_var_test", "build"
+                )
+            ),
         )
 
 
