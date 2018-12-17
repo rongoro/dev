@@ -153,7 +153,8 @@ class LocalRuntimeTests(unittest.TestCase):
     def test_get_ports(self):
         self.assertEqual([30002, 30003, 30004], dev.Runtime.find_open_ports(30002, 3))
 
-        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        with closing(sock):
             sock.settimeout(0)
             free_port = 30002
             sock.bind(("localhost", free_port))
