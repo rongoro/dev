@@ -198,11 +198,12 @@ class Runtime(object):
     def find_open_ports(start_port, count):
         ports = []
         for port in range(start_port, 65535):
-            with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-                sock.settimeout(1)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            with closing(sock): 
+                sock.settimeout(1) 
                 try:
-                    res = sock.bind(("localhost", port))
-                except Exception as e:
+                    sock.bind(("localhost", port))
+                except IOError as e:
                     if e.errno is 98:  ## Errorno 98 means address already bound
                         continue
             ports.append(port)
