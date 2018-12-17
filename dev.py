@@ -124,7 +124,7 @@ class ProjectConfig(object):
         global_config = GlobalConfig.get(dev_tree)
 
         return ProjectConfig._merge_config_with_default_dict(
-            full_config[project_name], global_config['project_defaults']
+            full_config[project_name], global_config["project_defaults"]
         )
 
     @staticmethod
