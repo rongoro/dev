@@ -82,7 +82,7 @@ class GlobalConfig(object):
 
 class ProjectConfig(object):
     @staticmethod
-    def parse_project_path(dev_tree, project_path, require_project_name=True):
+    def _parse_project_path(dev_tree, project_path, require_project_name=True):
         if not project_path.startswith("//"):
             raise DevRepoException("Project path must start with //")
 
@@ -120,8 +120,8 @@ class ProjectConfig(object):
         return new_config
 
     @staticmethod
-    def get(dev_tree, project_path):
-        project_parent_dir, project_name = ProjectConfig.parse_project_path(
+    def lookup_config(dev_tree, project_path):
+        project_parent_dir, project_name = ProjectConfig._parse_project_path(
             dev_tree, project_path
         )
 
@@ -141,7 +141,7 @@ class ProjectConfig(object):
 
     @staticmethod
     def list_projects(dev_tree, project_path):
-        project_parent_dir, _ = ProjectConfig.parse_project_path(
+        project_parent_dir, _ = ProjectConfig._parse_project_path(
             dev_tree, project_path, require_project_name=False
         )
 
@@ -161,7 +161,7 @@ class ProjectConfig(object):
 
     @staticmethod
     def _build_tmpl_vars(dev_tree, project_path):
-        project_parent_dir, project_name = ProjectConfig.parse_project_path(
+        project_parent_dir, project_name = ProjectConfig._parse_project_path(
             dev_tree, project_path
         )
         config = ProjectConfig.get(dev_tree, project_path)
