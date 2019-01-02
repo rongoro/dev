@@ -151,9 +151,7 @@ class ProjectConfig(object):
         return sorted(full_config.keys())
 
     @staticmethod
-    def get_commands(dev_tree, project_path):
-        proj_config = ProjectConfig.get(dev_tree, project_path)
-
+    def get_commands(proj_config):
         if "commands" not in proj_config:
             return {}
 
@@ -164,7 +162,7 @@ class ProjectConfig(object):
         project_parent_dir, project_name = ProjectConfig._parse_project_path(
             dev_tree, project_path
         )
-        config = ProjectConfig.get(dev_tree, project_path)
+        config = ProjectConfig.lookup_config(dev_tree, project_path)
 
         vardict = {
             "CWD": os.path.join(dev_tree, project_parent_dir, config["path"]),
@@ -180,7 +178,8 @@ class ProjectConfig(object):
 
     @staticmethod
     def run_project_command(dev_tree, project_path, command):
-        proj_commands = ProjectConfig.get_commands(dev_tree, project_path)
+        proj_commands = ProjectConfig.get_commands(
+            ProjectConfig.lookup_config(dev_tree, project_path))
 
         if command not in proj_commands:
             raise DevRepoException(
@@ -191,7 +190,7 @@ class ProjectConfig(object):
             proj_commands[command],
             ProjectConfig._build_tmpl_vars(dev_tree, project_path),
         )
-        runtime_name = ProjectConfig.get(dev_tree, project_path)["runtime"]
+        runtime_name = ProjectConfig.lookup_config(dev_tree, project_path)["runtime"]
 
         return Runtime.run_command(
             GlobalConfig.get_runtime_config(dev_tree, runtime_name), full_command
