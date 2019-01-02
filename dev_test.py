@@ -103,6 +103,15 @@ class DevConfigHelpersTest(unittest.TestCase):
             "non_existant_runtime",
         )
 
+        # malformed project path
+        self.assertRaisesRegexp(
+            dev.DevRepoException,
+            "Bad project path:.*",
+            dev.ProjectConfig.lookup_config,
+            test_root,
+            "//foo::",
+        )
+
     def test_get_project_list(self):
         self.assertEqual(
             sorted(
@@ -117,39 +126,53 @@ class DevConfigHelpersTest(unittest.TestCase):
             dev.ProjectConfig.list_projects(test_root, "//world/example.com"),
         )
 
+        self.assertRaisesRegexp(
+            dev.DevRepoException,
+            r"Project should not be specified\.",
+            dev.ProjectConfig.list_projects,
+            test_root,
+            "//world/example.com:foo",
+        )
+
     def test_get_project_commands(self):
         self.assertEqual(
             {"build": "echo foo"},
             dev.ProjectConfig.get_commands(
-                test_root, "//world/example.com:project_foo"
+                dev.ProjectConfig.lookup_config(
+                    test_root, "//world/example.com:project_foo"
+                )
             ),
         )
 
         self.assertEqual(
             {"build": "bazel build $PROJECTPATH"},
             dev.ProjectConfig.get_commands(
-                test_root, "//world/example.com:project_bar_no_commands"
+                dev.ProjectConfig.lookup_config(
+                    test_root, "//world/example.com:project_bar_no_commands"
+                )
             ),
         )
+
+        self.assertEqual({}, dev.ProjectConfig.get_commands({}))
 
     def test_get_project_config(self):
         self.assertRaises(
             dev.DevRepoException,
-            dev.ProjectConfig.get,
+            dev.ProjectConfig.lookup_config,
             test_root,
             "bad_path/foo_project:bad",
         )
 
         self.assertRaises(
             dev.DevRepoException,
-            dev.ProjectConfig.get,
+            dev.ProjectConfig.lookup_config,
             test_root,
             "//bad_project_path_with_no_colon",
         )
 
         self.assertRaises(
             dev.DevRepoException,
-            dev.ProjectConfig.get,
+            dev.ProjectConfig.lookup_config,
             test_root,
             "//world/example.com:project_not_exist",
         )
@@ -160,7 +183,9 @@ class DevConfigHelpersTest(unittest.TestCase):
                 "commands": {"build": "echo foo"},
                 "runtime": "host",
             },
-            dev.ProjectConfig.get(test_root, "//world/example.com:project_foo"),
+            dev.ProjectConfig.lookup_config(
+                test_root, "//world/example.com:project_foo"
+            ),
         )
 
 
@@ -292,6 +317,26 @@ class DevRuntimeTests(unittest.TestCase):
         self.assertEqual(
             dev.DockerRuntimeProvider, dev.Runtime.get_provider({"provider": "docker"})
         )
+
+    def test_run_command_when_docker_image_not_setup(self):
+        image_name = "dev_test_image"
+        self.assertIn(
+            'NAME="Alpine Linux"',
+            dev.Runtime.run_command(
+                {"provider":"docker",
+                    "image_name": image_name,
+                    "location": os.path.join(
+                        test_data_dir, "test_root", "runtimes", "test_runtime"
+                    ),
+                },
+                ["cat", "/etc/os-release"],
+            ),
+        )
+
+        # cleanup
+        self.assertTrue(dev.DockerRuntimeProvider.rm_image({}, image_name))
+
+        self.assertNotIn(image_name, dev.DockerRuntimeProvider.get_images({}))
 
 
 if __name__ == "__main__":

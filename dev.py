@@ -86,7 +86,7 @@ class ProjectConfig(object):
         if not project_path.startswith("//"):
             raise DevRepoException("Project path must start with //")
 
-        parts = re.match("//(?P<path>[^:]*)(?P<project>:[A-Za-z0-9_-]+)?", project_path)
+        parts = re.match("^//(?P<path>[^:]*)(?P<project>:[A-Za-z0-9_-]+)?$", project_path)
         if not parts:
             raise DevRepoException("Bad project path: %s" % project_path)
 
@@ -230,10 +230,6 @@ class Runtime(object):
             if len(ports) == count:
                 break
         return ports
-
-    @staticmethod
-    def setup():
-        pass
 
 
 def register_runtime_provider(name):
