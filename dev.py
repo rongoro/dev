@@ -24,6 +24,7 @@ import shlex
 
 from contextlib import closing
 
+RuntimeProviders = {}
 
 class DevRepoException(Exception):
     pass
@@ -236,6 +237,15 @@ class Runtime(object):
         pass
 
 
+def register_runtime_provider(name):
+    def do_register(cls):
+        RuntimeProviders[name] = cls
+        return cls
+
+    return do_register
+
+
+@register_runtime_provider("local")
 class LocalRuntimeProvider(object):
     @staticmethod
     def is_ready(config):
@@ -272,6 +282,7 @@ class LocalRuntimeProvider(object):
         return output
 
 
+@register_runtime_provider("docker")
 class DockerRuntimeProvider(Runtime):
     @staticmethod
     def setup(config):
@@ -310,5 +321,4 @@ class DockerRuntimeProvider(Runtime):
         return output
 
 
-RuntimeProviders = {"local": LocalRuntimeProvider, "docker": DockerRuntimeProvider}
 
