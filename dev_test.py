@@ -282,6 +282,17 @@ class DevRuntimeTests(unittest.TestCase):
             ["this is a test"], dev.Runtime.run_command(runtime_config, test_command)
         )
 
+    def test_provider_lookup(self):
+        self.assertRaises(dev.DevRepoException, dev.Runtime.get_provider, {})
+
+        self.assertEqual(
+            dev.LocalRuntimeProvider, dev.Runtime.get_provider({"provider": "local"})
+        )
+
+        self.assertEqual(
+            dev.DockerRuntimeProvider, dev.Runtime.get_provider({"provider": "docker"})
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
