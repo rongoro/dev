@@ -267,7 +267,7 @@ class LocalRuntimeProvider(object):
         process.stdout.close()
         return_code = process.wait()
         if return_code:
-            raise subprocess.CalledProcessError(return_code, command)
+            raise subprocess.CalledProcessError(return_code, command, output)
 
         return output
 
@@ -275,30 +275,37 @@ class LocalRuntimeProvider(object):
 class DockerRuntimeProvider(Runtime):
     @staticmethod
     def setup(config):
-        output = LocalRuntimeProvider.run_command(config,
-            ["docker", "build", "-t", config['name'], config['location']]
+        output = LocalRuntimeProvider.run_command(
+            config, ["docker", "build", "-t", config["image_name"], config["location"]]
         )
-        return output[-1].startswith("Successfully tagged " + config['name'])
+        return output[-1].startswith("Successfully tagged " + config["image_name"])
+
+    @staticmethod
+    def is_ready(config):
+        if "image_name" not in config:
+            raise DevRepoException(
+                "'image_name' missing from config for docker runtime provider."
+            )
+
+        return config["image_name"] in DockerRuntimeProvider.get_images(config)
 
     @staticmethod
     def run_command(config, command):
-        output = LocalRuntimeProvider.run_command(config,
-            ["docker", "run", "-it", config['name']] + command
+        output = LocalRuntimeProvider.run_command(
+            config, ["docker", "run", "-it", config["image_name"]] + command
         )
 
         return output
 
     @staticmethod
     def get_images(config):
-        output = LocalRuntimeProvider.run_command(config,
-            ["docker", "images"], 
-        )
+        output = LocalRuntimeProvider.run_command(config, ["docker", "images"])
         return [l.split()[0] for l in output[1:]]
 
     @staticmethod
     def rm_image(config, image_name):
-        output = LocalRuntimeProvider.run_command(config,
-            ["docker", "rmi", "-f", image_name], 
+        output = LocalRuntimeProvider.run_command(
+            config, ["docker", "rmi", "-f", image_name]
         )
         return output
 

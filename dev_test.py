@@ -223,7 +223,7 @@ class DockerRuntimeTests(unittest.TestCase):
                     "location": os.path.join(
                         test_data_dir, "test_root", "runtimes", "test_runtime"
                     ),
-                    "name": self.image_name,
+                    "image_name": self.image_name,
                 }
             )
         )
@@ -232,6 +232,16 @@ class DockerRuntimeTests(unittest.TestCase):
         self.assertTrue(dev.DockerRuntimeProvider.rm_image({}, self.image_name))
 
         self.assertNotIn(self.image_name, dev.DockerRuntimeProvider.get_images({}))
+
+    def test_docker_image_is_ready(self):
+        self.assertRaises(dev.DevRepoException, dev.DockerRuntimeProvider.is_ready, {})
+
+        self.assertTrue(
+            dev.DockerRuntimeProvider.is_ready({"image_name": self.image_name})
+        )
+        self.assertFalse(
+            dev.DockerRuntimeProvider.is_ready({"image_name": "non_existant_image"})
+        )
 
     def test_docker_setup(self):
         self.assertIn(self.image_name, dev.DockerRuntimeProvider.get_images({}))
@@ -242,7 +252,7 @@ class DockerRuntimeTests(unittest.TestCase):
             dev.DockerRuntimeProvider.setup,
             {
                 "location": os.path.join(test_data_dir, "test_root"),
-                "name": self.image_name,
+                "image_name": self.image_name,
             },
         )
 
@@ -250,14 +260,14 @@ class DockerRuntimeTests(unittest.TestCase):
         self.assertIn(
             'NAME="Alpine Linux"',
             dev.DockerRuntimeProvider.run_command(
-                {"name": self.image_name}, ["cat", "/etc/os-release"]
+                {"image_name": self.image_name}, ["cat", "/etc/os-release"]
             ),
         )
 
         self.assertRaises(
             subprocess.CalledProcessError,
             dev.DockerRuntimeProvider.run_command,
-            {"name": "bad"},
+            {"image_name": "bad"},
             command=["cat", "/etc/os-release"],
         )
 
