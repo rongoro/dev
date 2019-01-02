@@ -60,15 +60,20 @@ class DevConfigHelpersTest(unittest.TestCase):
             {
                 "version": "1",
                 "runtimes": {
-                    "local": {"type": "local", "cwd": "$CWD"},
-                    "base": {"type": "docker", "project": "//runtimes:test_runtime"},
+                    "host": {"provider": "local", "cwd": "$CWD"},
+                    "base": {
+                        "provider": "docker",
+                        "project": "//runtimes:test_runtime",
+                        "image_name": "test_runtime",
+                        "container_name": "test_build_container",
+                    },
                     "bad_runtime": {
-                        "type": "docker",
+                        "provider": "docker",
                         "project": "//runtimes:does_not_exist",
                     },
                 },
                 "project_defaults": {
-                    "runtime": "base",
+                    "runtime": "host",
                     "commands": {"build": "bazel build $PROJECTPATH"},
                 },
             },
@@ -77,7 +82,25 @@ class DevConfigHelpersTest(unittest.TestCase):
 
     def test_list_available_runtimes(self):
         self.assertEqual(
-            ["bad_runtime", "base", "local"], dev.GlobalConfig.get_runtimes(test_root)
+            ["bad_runtime", "base", "host"], dev.GlobalConfig.get_runtimes(test_root)
+        )
+
+    def test_get_runtime_config(self):
+        self.assertEqual(
+            {
+                "provider": "docker",
+                "project": "//runtimes:test_runtime",
+                "image_name": "test_runtime",
+                "container_name": "test_build_container",
+            },
+            dev.GlobalConfig.get_runtime_config(test_root, "base"),
+        )
+
+        self.assertRaises(
+            dev.DevRepoException,
+            dev.GlobalConfig.get_runtime_config,
+            test_root,
+            "non_existant_runtime",
         )
 
     def test_get_project_list(self):
@@ -135,7 +158,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             {
                 "path": "project_foo",
                 "commands": {"build": "echo foo"},
-                "runtime": "base",
+                "runtime": "host",
             },
             dev.ProjectConfig.get(test_root, "//world/example.com:project_foo"),
         )
@@ -146,7 +169,7 @@ class LocalRuntimeTests(unittest.TestCase):
         self.assertEqual(
             ["Test Success!"],
             dev.Runtime.run_command(
-                ["/bin/echo", "Test Success!"], capture_output=True
+                {"provider": "local"}, ["/bin/echo", "Test Success!"]
             ),
         )
 
@@ -162,13 +185,13 @@ class LocalRuntimeTests(unittest.TestCase):
 
     def test_local_runtime_setup(self):
         self.assertTrue(
-            dev.Runtime.setup(
+            dev.LocalRuntimeProvider.setup(
                 location=os.path.join(test_data_dir, "local_runtime_example")
             )
         )
 
         self.assertFalse(
-            dev.Runtime.setup(
+            dev.LocalRuntimeProvider.setup(
                 location=os.path.join(test_data_dir, "local_runtime_example_bad")
             )
         )
@@ -195,44 +218,58 @@ class DockerRuntimeTests(unittest.TestCase):
 
     def setUp(self):
         self.assertTrue(
-            dev.DockerRuntime.setup(
-                location=os.path.join(
-                    test_data_dir, "test_root", "runtimes", "test_runtime"
-                ),
-                name=self.image_name,
+            dev.DockerRuntimeProvider.setup(
+                {
+                    "location": os.path.join(
+                        test_data_dir, "test_root", "runtimes", "test_runtime"
+                    ),
+                    "name": self.image_name,
+                }
             )
         )
 
     def tearDown(self):
-        self.assertTrue(dev.DockerRuntime.rm_image(self.image_name))
+        self.assertTrue(dev.DockerRuntimeProvider.rm_image({}, self.image_name))
 
-        self.assertNotIn(self.image_name, dev.DockerRuntime.get_images())
+        self.assertNotIn(self.image_name, dev.DockerRuntimeProvider.get_images({}))
 
     def test_docker_setup(self):
-        self.assertIn(self.image_name, dev.DockerRuntime.get_images())
+        self.assertIn(self.image_name, dev.DockerRuntimeProvider.get_images({}))
 
         # bad path
         self.assertRaises(
             subprocess.CalledProcessError,
-            dev.DockerRuntime.setup,
-            location=os.path.join(test_data_dir, "test_root"),
-            name=self.image_name,
+            dev.DockerRuntimeProvider.setup,
+            {
+                "location": os.path.join(test_data_dir, "test_root"),
+                "name": self.image_name,
+            },
         )
 
     def test_docker_run(self):
         self.assertIn(
             'NAME="Alpine Linux"',
-            dev.DockerRuntime.run_command(
-                self.image_name, ["cat", "/etc/os-release"], capture_output=True
+            dev.DockerRuntimeProvider.run_command(
+                {"name": self.image_name}, ["cat", "/etc/os-release"]
             ),
         )
 
         self.assertRaises(
             subprocess.CalledProcessError,
-            dev.DockerRuntime.run_command,
-            name="bad",
+            dev.DockerRuntimeProvider.run_command,
+            {"name": "bad"},
             command=["cat", "/etc/os-release"],
-            capture_output=True,
+        )
+
+
+class DevRuntimeTests(unittest.TestCase):
+    def test_run_command(self):
+        test_command = "echo 'this is a test'"
+
+        runtime_config = {"provider": "local"}
+
+        self.assertEqual(
+            ["this is a test"], dev.Runtime.run_command(runtime_config, test_command)
         )
 
 

@@ -67,6 +67,17 @@ class GlobalConfig(object):
         config = GlobalConfig.get(dev_tree)
         return sorted(config["runtimes"].keys())
 
+    @staticmethod
+    def get_runtime_config(dev_tree, runtime_name):
+        config = GlobalConfig.get(dev_tree)
+        if runtime_name not in config["runtimes"]:
+            raise DevRepoException(
+                "Runtime %s doesn't exist in the config for dev repo %s"
+                % (runtime_name, dev_tree)
+            )
+        else:
+            return config["runtimes"][runtime_name]
+
 
 class ProjectConfig(object):
     @staticmethod
@@ -179,28 +190,37 @@ class ProjectConfig(object):
             proj_commands[command],
             ProjectConfig._build_tmpl_vars(dev_tree, project_path),
         )
+        runtime_name = ProjectConfig.get(dev_tree, project_path)["runtime"]
 
-        return Runtime.run_command(full_command)
+        return Runtime.run_command(
+            GlobalConfig.get_runtime_config(dev_tree, runtime_name), full_command
+        )
 
 
 class Runtime(object):
     @staticmethod
-    def setup(location):
-        if not (
-            os.path.exists(os.path.join(location, "bin"))
-            and os.path.isdir(os.path.join(location, "bin"))
-        ):
-            return False
-        else:
-            return True
+    def get_provider(config):
+        if "provider" not in config:
+            raise DevRepoException("No provider specified in config:\n %s" % config)
+
+        return RuntimeProviders[config["provider"]]
+
+    @staticmethod
+    def run_command(config, command):
+        provider = Runtime.get_provider(config)
+
+        if not provider.is_ready(config):
+            provider.setup(config)
+
+        return provider.run_command(config, command)
 
     @staticmethod
     def find_open_ports(start_port, count):
         ports = []
         for port in range(start_port, 65535):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            with closing(sock): 
-                sock.settimeout(1) 
+            with closing(sock):
+                sock.settimeout(1)
                 try:
                     sock.bind(("localhost", port))
                 except IOError as e:
@@ -212,7 +232,27 @@ class Runtime(object):
         return ports
 
     @staticmethod
-    def run_command(command, capture_output=True):
+    def setup():
+        pass
+
+
+class LocalRuntimeProvider(object):
+    @staticmethod
+    def is_ready(config):
+        return True
+
+    @staticmethod
+    def setup(location):
+        if not (
+            os.path.exists(os.path.join(location, "bin"))
+            and os.path.isdir(os.path.join(location, "bin"))
+        ):
+            return False
+        else:
+            return True
+
+    @staticmethod
+    def run_command(config, command):
         if isinstance(command, basestring):
             command = shlex.split(command)
 
@@ -222,10 +262,7 @@ class Runtime(object):
 
         output = []
         for stdout_line in iter(process.stdout.readline, ""):
-            if capture_output:
-                output.append(stdout_line.strip())
-            else:
-                print(stdout_line, end="")
+            output.append(stdout_line.strip())
 
         process.stdout.close()
         return_code = process.wait()
@@ -235,30 +272,36 @@ class Runtime(object):
         return output
 
 
-class DockerRuntime(Runtime):
+class DockerRuntimeProvider(Runtime):
     @staticmethod
-    def setup(location, name):
-        output = Runtime.run_command(
-            ["docker", "build", "-t", name, location], capture_output=True
+    def setup(config):
+        output = LocalRuntimeProvider.run_command(config,
+            ["docker", "build", "-t", config['name'], config['location']]
         )
-        return output[-1].startswith("Successfully tagged " + name)
+        return output[-1].startswith("Successfully tagged " + config['name'])
 
     @staticmethod
-    def run_command(name, command, capture_output=False):
-        output = Runtime.run_command(
-            ["docker", "run", "-it", name] + command, capture_output=capture_output
+    def run_command(config, command):
+        output = LocalRuntimeProvider.run_command(config,
+            ["docker", "run", "-it", config['name']] + command
         )
-        if capture_output == True:
-            return output
+
+        return output
 
     @staticmethod
-    def get_images():
-        output = Runtime.run_command(["docker", "images"], capture_output=True)
+    def get_images(config):
+        output = LocalRuntimeProvider.run_command(config,
+            ["docker", "images"], 
+        )
         return [l.split()[0] for l in output[1:]]
 
     @staticmethod
-    def rm_image(image_name):
-        output = Runtime.run_command(
-            ["docker", "rmi", "-f", image_name], capture_output=True
+    def rm_image(config, image_name):
+        output = LocalRuntimeProvider.run_command(config,
+            ["docker", "rmi", "-f", image_name], 
         )
         return output
+
+
+RuntimeProviders = {"local": LocalRuntimeProvider, "docker": DockerRuntimeProvider}
+

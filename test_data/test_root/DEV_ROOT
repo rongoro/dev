@@ -1,12 +1,17 @@
 {
   "version": "1",
   "runtimes": {
-    "local": { "type": "local", "cwd": "$CWD" },
-    "base": { "type": "docker", "project": "//runtimes:test_runtime" },
-    "bad_runtime": { "type": "docker", "project": "//runtimes:does_not_exist" }
+    "host": { "provider": "local", "cwd": "$CWD" },
+    "base": {
+      "provider": "docker",
+      "image_name": "test_runtime",
+      "container_name": "test_build_container",
+      "project": "//runtimes:test_runtime"
+    },
+    "bad_runtime": { "provider": "docker", "project": "//runtimes:does_not_exist" }
   },
   "project_defaults": {
-    "runtime": "base",
-    "commands": {"build": "bazel build $PROJECTPATH"}
+    "runtime": "host",
+    "commands": { "build": "bazel build $PROJECTPATH" }
   }
 }
