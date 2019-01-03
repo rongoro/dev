@@ -226,6 +226,7 @@ class ProjectConfig(object):
         raw_runtime_config = GlobalConfig.get_runtime_config(dev_tree, runtime_name)
         runtime_config = ProjectConfig._render_config(raw_runtime_config, tmpl_vars)
 
+        runtime_config["verbose"] = True
         return Runtime.run_command(runtime_config, full_command)
 
 
@@ -297,6 +298,8 @@ class LocalRuntimeProvider(object):
         output = []
         for stdout_line in iter(process.stdout.readline, ""):
             output.append(stdout_line.strip())
+            if config.get("verbose", False):
+                print(stdout_line, end="")
 
         process.stdout.close()
         return_code = process.wait()
@@ -400,19 +403,32 @@ def build(args):
     root_path = Repo.get_dev_root(os.curdir)
     project_path = args.project[0]
 
-    print(
-        "\n".join(ProjectConfig.run_project_command(root_path, project_path, "build"))
-    )
+    ProjectConfig.run_project_command(root_path, project_path, "build")
+    
+
 
 @subcommand([argument("project", default=None, nargs=1, help="project path")])
 def test(args):
-    """Run the build command for the given project."""
+    """Run the test command for the given project."""
     root_path = Repo.get_dev_root(os.curdir)
     project_path = args.project[0]
 
-    print(
-        "\n".join(ProjectConfig.run_project_command(root_path, project_path, "test"))
-    )
+    ProjectConfig.run_project_command(root_path, project_path, "test")
+
+
+@subcommand(
+    [
+        argument("command", nargs=1, help="The command to run"),
+        argument("project", default=None, nargs=1, help="project path"),
+    ]
+)
+def run(args):
+    """Run the test command for the given project."""
+    root_path = Repo.get_dev_root(os.curdir)
+    project_path = args.project[0]
+
+    ProjectConfig.run_project_command(root_path, project_path, args.command[0])
+
 
 if __name__ == "__main__":
     args = cli.parse_args()
