@@ -204,8 +204,10 @@ class ProjectConfig(object):
             for v in val:
                 new_val.append(ProjectConfig._render_config(v, tmpl_vars))
             return new_val
+        elif isinstance(val, bool):
+            return val
         else:
-            DevRepoException("Unrecognized value: %s" % val)
+            raise DevRepoException("Unrecognized value: %s" % val)
 
     @staticmethod
     def run_project_command(dev_tree, project_path, command):
