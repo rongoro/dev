@@ -210,7 +210,7 @@ class ProjectConfig(object):
             raise DevRepoException("Unrecognized value: %s" % val)
 
     @staticmethod
-    def run_project_command(dev_tree, project_path, command):
+    def run_project_command(dev_tree, project_path, command, verbose=None):
         proj_commands = ProjectConfig.get_commands(
             ProjectConfig.lookup_config(dev_tree, project_path)
         )
@@ -228,8 +228,10 @@ class ProjectConfig(object):
         raw_runtime_config = GlobalConfig.get_runtime_config(dev_tree, runtime_name)
         runtime_config = ProjectConfig._render_config(raw_runtime_config, tmpl_vars)
 
-        runtime_config["verbose"] = True
-        return Runtime.run_command(runtime_config, full_command)
+        if verbose != None:
+            runtime_config["verbose"] = verbose
+
+        return Runtime.run_command(dev_tree, runtime_config, full_command)
 
 
 class Runtime(object):
@@ -241,11 +243,11 @@ class Runtime(object):
         return RuntimeProviders[config["provider"]]
 
     @staticmethod
-    def run_command(config, command):
+    def run_command(dev_tree, config, command):
         provider = Runtime.get_provider(config)
 
-        if not provider.is_ready(config):
-            provider.setup(config)
+        if (not provider.is_ready(config)) and ("project" in config):
+            ProjectConfig.run_project_command(dev_tree, config["project"], "build")
 
         return provider.run_command(config, command)
 
@@ -298,6 +300,7 @@ class LocalRuntimeProvider(object):
         )
 
         output = []
+
         for stdout_line in iter(process.stdout.readline, ""):
             output.append(stdout_line.strip())
             if config.get("verbose", False):
@@ -305,6 +308,7 @@ class LocalRuntimeProvider(object):
 
         process.stdout.close()
         return_code = process.wait()
+
         if return_code:
             raise subprocess.CalledProcessError(return_code, command, output)
 
@@ -316,7 +320,7 @@ class DockerRuntimeProvider(Runtime):
     @staticmethod
     def setup(config):
         output = LocalRuntimeProvider.run_command(
-            config, ["docker", "build", "-t", config["image_name"], config["location"]]
+            config, ["docker", "build", "-t", config["image_name"], config["cwd"]]
         )
         return output[-1].startswith("Successfully tagged " + config["image_name"])
 
@@ -331,14 +335,33 @@ class DockerRuntimeProvider(Runtime):
 
     @staticmethod
     def run_command(config, command):
+        if isinstance(command, basestring):
+            command = shlex.split(command)
+
         output = LocalRuntimeProvider.run_command(
-            config, ["docker", "run", "-it", config["image_name"]] + command
+            config,
+            [
+                "docker",
+                "run",
+                "-it",
+                "--rm",
+                "--mount",
+                "src=%s,target=%s,type=bind" % (config["cwd"], config["workingdir"]),
+                "-w",
+                config["workingdir"],
+                "--name",
+                "dev-tree-container",
+                config["image_name"],
+            ]
+            + command,
         )
 
         return output
 
     @staticmethod
     def get_images(config):
+        config = copy.deepcopy(config)
+        config["verbose"] = False
         output = LocalRuntimeProvider.run_command(config, ["docker", "images"])
         return [l.split()[0] for l in output[1:]]
 
@@ -406,7 +429,6 @@ def build(args):
     project_path = args.project[0]
 
     ProjectConfig.run_project_command(root_path, project_path, "build")
-    
 
 
 @subcommand([argument("project", default=None, nargs=1, help="project path")])
@@ -415,7 +437,7 @@ def test(args):
     root_path = Repo.get_dev_root(os.curdir)
     project_path = args.project[0]
 
-    ProjectConfig.run_project_command(root_path, project_path, "test")
+    ProjectConfig.run_project_command(root_path, project_path, "test", verbose=True)
 
 
 @subcommand(

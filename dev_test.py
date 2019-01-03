@@ -63,6 +63,11 @@ class DevConfigHelpersTest(unittest.TestCase):
                 "version": "1",
                 "runtimes": {
                     "host": {"provider": "local", "cwd": "$CWD"},
+                    "host-verbose": {
+                        "provider": "local",
+                        "cwd": "$CWD",
+                        "verbose": True,
+                    },
                     "base": {
                         "provider": "docker",
                         "project": "//runtimes:test_runtime",
@@ -87,7 +92,8 @@ class DevConfigHelpersTest(unittest.TestCase):
 
     def test_list_available_runtimes(self):
         self.assertEqual(
-            ["bad_runtime", "base", "host"], dev.GlobalConfig.get_runtimes(test_root)
+            ["bad_runtime", "base", "host", "host-verbose"],
+            dev.GlobalConfig.get_runtimes(test_root),
         )
 
     def test_get_runtime_config(self):
@@ -122,10 +128,13 @@ class DevConfigHelpersTest(unittest.TestCase):
             sorted(
                 [
                     "project_bar",
+                    "project_bar_verbose",
                     "project_bar_no_commands",
                     "project_bar_var_test",
+                    "project_bar_var_test_verbose",
                     "project_foo",
                     "project_foo_other",
+                    "project_foo_other_verbose"
                 ]
             ),
             dev.ProjectConfig.list_projects(test_root, "//world/example.com"),
@@ -185,7 +194,7 @@ class DevConfigHelpersTest(unittest.TestCase):
         self.assertEqual(
             {
                 "path": "project_foo",
-                "commands": {"build": "echo foo", "test":"echo TEST NOT IMPLEMENTED"},
+                "commands": {"build": "echo foo", "test": "echo TEST NOT IMPLEMENTED"},
                 "runtime": "host",
             },
             dev.ProjectConfig.lookup_config(
@@ -294,7 +303,7 @@ class LocalRuntimeTests(unittest.TestCase):
         self.assertEqual(
             ["Test Success!"],
             dev.Runtime.run_command(
-                {"provider": "local"}, ["/bin/echo", "Test Success!"]
+                test_root, {"provider": "local"}, ["/bin/echo", "Test Success!"]
             ),
         )
 
@@ -339,10 +348,18 @@ class DockerRuntimeTests(unittest.TestCase):
         self.assertTrue(
             dev.DockerRuntimeProvider.setup(
                 {
-                    "location": os.path.join(
-                        test_data_dir, "test_root", "runtimes", "test_runtime"
-                    ),
+                    "project": "//runtimes:test_runtim",
                     "image_name": self.image_name,
+                    "cwd": os.path.realpath(
+                        os.path.join(
+                            os.path.dirname(__file__),
+                            "test_data",
+                            "test_root",
+                            "runtimes",
+                            "test_runtime",
+                        )
+                    ),
+                    "workingdir": "/project",
                 }
             )
         )
@@ -370,8 +387,15 @@ class DockerRuntimeTests(unittest.TestCase):
             subprocess.CalledProcessError,
             dev.DockerRuntimeProvider.setup,
             {
-                "location": os.path.join(test_data_dir, "test_root"),
+                "provider": "docker",
+                "project": "//runtimes:bad_runtime",
                 "image_name": self.image_name,
+                "cwd": os.path.realpath(
+                    os.path.join(
+                        os.path.dirname(__file__), "test_data", "test_root", "runtimes"
+                    )
+                ),
+                "workingdir": "/project",
             },
         )
 
@@ -379,14 +403,43 @@ class DockerRuntimeTests(unittest.TestCase):
         self.assertIn(
             'NAME="Alpine Linux"',
             dev.DockerRuntimeProvider.run_command(
-                {"image_name": self.image_name}, ["cat", "/etc/os-release"]
+                {
+                    "provider": "docker",
+                    "project": "//runtimes:test_runtime",
+                    "image_name": self.image_name,
+                    "cwd": os.path.realpath(
+                        os.path.join(
+                            os.path.dirname(__file__),
+                            "test_data",
+                            "test_root",
+                            "runtimes",
+                            "test_runtime",
+                        )
+                    ),
+                    "workingdir": "/project",
+                },
+                ["cat", "/etc/os-release"],
             ),
         )
 
         self.assertRaises(
             subprocess.CalledProcessError,
             dev.DockerRuntimeProvider.run_command,
-            {"image_name": "bad"},
+            {
+                "provider": "docker",
+                "project": "//runtimes:test_runtime",
+                "image_name": "bad",
+                "cwd": os.path.realpath(
+                    os.path.join(
+                        os.path.dirname(__file__),
+                        "test_data",
+                        "test_root",
+                        "runtimes",
+                        "test_runtime",
+                    )
+                ),
+                "workingdir": "/project",
+            },
             command=["cat", "/etc/os-release"],
         )
 
@@ -398,7 +451,8 @@ class DevRuntimeTests(unittest.TestCase):
         runtime_config = {"provider": "local"}
 
         self.assertEqual(
-            ["this is a test"], dev.Runtime.run_command(runtime_config, test_command)
+            ["this is a test"],
+            dev.Runtime.run_command(test_root, runtime_config, test_command),
         )
 
     def test_provider_lookup(self):
@@ -413,16 +467,21 @@ class DevRuntimeTests(unittest.TestCase):
         )
 
     def test_run_command_when_docker_image_not_setup(self):
-        image_name = "dev_test_image"
+        image_name = "test_runtime"
         self.assertIn(
             'NAME="Alpine Linux"',
             dev.Runtime.run_command(
+                test_root,
                 {
                     "provider": "docker",
+                    "project": "//runtimes:test_runtime",
                     "image_name": image_name,
-                    "location": os.path.join(
-                        test_data_dir, "test_root", "runtimes", "test_runtime"
+                    "cwd": os.path.realpath(
+                        os.path.join(
+                            os.path.dirname(__file__), "test_data", "test_root"
+                        )
                     ),
+                    "workingdir": "/project",
                 },
                 ["cat", "/etc/os-release"],
             ),
@@ -461,7 +520,7 @@ class DevCLITests(unittest.TestCase):
     def test_build_command(self):
         self.assertEqual(
             "foo other\n",
-            self.dev_cmd(["build", "//world/example.com:project_foo_other"]),
+            self.dev_cmd(["build", "//world/example.com:project_foo_other_verbose"]),
         )
 
         self.assertEqual(
@@ -476,17 +535,17 @@ class DevCLITests(unittest.TestCase):
                         "build",
                         "world",
                         "example.com",
-                        "project_bar_var_test",
+                        "project_bar_var_test_verbose",
                     )
                 ),
             ),
-            self.dev_cmd(["build", "//world/example.com:project_bar_var_test"]),
+            self.dev_cmd(["build", "//world/example.com:project_bar_var_test_verbose"]),
         )
 
     def test_test_command(self):
         self.assertEqual(
             "TEST NOT IMPLEMENTED\n",
-            self.dev_cmd(["test", "//world/example.com:project_bar"]),
+            self.dev_cmd(["test", "//world/example.com:project_bar_verbose"]),
         )
 
 

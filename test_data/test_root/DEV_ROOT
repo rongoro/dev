@@ -2,6 +2,7 @@
   "version": "1",
   "runtimes": {
     "host": { "provider": "local", "cwd": "$CWD" },
+    "host-verbose": { "provider": "local", "cwd": "$CWD", "verbose": true },
     "base": {
       "provider": "docker",
       "image_name": "test_runtime",

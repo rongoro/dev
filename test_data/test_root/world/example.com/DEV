@@ -4,12 +4,30 @@
     "path": "project_foo",
     "commands": { "build": "echo foo other" }
   },
+  "project_foo_other_verbose": {
+    "runtime": "host-verbose",
+    "path": "project_foo",
+    "commands": { "build": "echo foo other" }
+  },
   "project_bar_no_commands": {
     "path": "project_bar"
   },
-  "project_bar": { "path": "project_bar", "commands": { "build": "echo bar" } },
+  "project_bar": {
+    "path": "project_bar",
+    "commands": { "build": "echo bar" }
+  },
+  "project_bar_verbose": {
+    "runtime": "host-verbose",
+    "path": "project_bar",
+    "commands": { "build": "echo bar" }
+  },
   "project_bar_var_test": {
     "path": "project_bar",
-    "commands": { "build": "echo bar $CWD $BUILDDIR"}
+    "commands": { "build": "echo bar $CWD $BUILDDIR" }
+  },
+  "project_bar_var_test_verbose": {
+    "runtime": "host-verbose",
+    "path": "project_bar",
+    "commands": { "build": "echo bar $CWD $BUILDDIR" }
   }
 }
