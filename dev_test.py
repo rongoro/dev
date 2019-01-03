@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import dev
 import os
 import subprocess
@@ -74,7 +76,10 @@ class DevConfigHelpersTest(unittest.TestCase):
                 },
                 "project_defaults": {
                     "runtime": "host",
-                    "commands": {"build": "bazel build $PROJECTPATH"},
+                    "commands": {
+                        "build": "bazel build $PROJECTPATH",
+                        "test": "echo TEST NOT IMPLEMENTED",
+                    },
                 },
             },
             dev.GlobalConfig.get(test_root),
@@ -136,7 +141,7 @@ class DevConfigHelpersTest(unittest.TestCase):
 
     def test_get_project_commands(self):
         self.assertEqual(
-            {"build": "echo foo"},
+            {"build": "echo foo", "test": "echo TEST NOT IMPLEMENTED"},
             dev.ProjectConfig.get_commands(
                 dev.ProjectConfig.lookup_config(
                     test_root, "//world/example.com:project_foo"
@@ -145,7 +150,7 @@ class DevConfigHelpersTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            {"build": "bazel build $PROJECTPATH"},
+            {"build": "bazel build $PROJECTPATH", "test": "echo TEST NOT IMPLEMENTED"},
             dev.ProjectConfig.get_commands(
                 dev.ProjectConfig.lookup_config(
                     test_root, "//world/example.com:project_bar_no_commands"
@@ -180,11 +185,106 @@ class DevConfigHelpersTest(unittest.TestCase):
         self.assertEqual(
             {
                 "path": "project_foo",
-                "commands": {"build": "echo foo"},
+                "commands": {"build": "echo foo", "test":"echo TEST NOT IMPLEMENTED"},
                 "runtime": "host",
             },
             dev.ProjectConfig.lookup_config(
                 test_root, "//world/example.com:project_foo"
+            ),
+        )
+
+    def test_render_config(self):
+        self.assertEqual(
+            {},
+            dev.ProjectConfig._render_config(
+                {},
+                dev.ProjectConfig._build_tmpl_vars(
+                    test_root, "//world/example.com:project_foo"
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            {"foo": "bar"},
+            dev.ProjectConfig._render_config(
+                {"foo": "bar"},
+                dev.ProjectConfig._build_tmpl_vars(
+                    test_root, "//world/example.com:project_foo"
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            {"foo": "bar", "baz": "test"},
+            dev.ProjectConfig._render_config(
+                {"foo": "bar", "baz": "test"},
+                dev.ProjectConfig._build_tmpl_vars(
+                    test_root, "//world/example.com:project_foo"
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            {"foo": "bar", "A": {"baz": "test"}},
+            dev.ProjectConfig._render_config(
+                {"foo": "bar", "A": {"baz": "test"}},
+                dev.ProjectConfig._build_tmpl_vars(
+                    test_root, "//world/example.com:project_foo"
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            {
+                "foo": "bar",
+                "A": {
+                    "baz": os.path.realpath(
+                        os.path.join(test_root, "world", "example.com", "project_foo")
+                    )
+                },
+            },
+            dev.ProjectConfig._render_config(
+                {"foo": "bar", "A": {"baz": "$CWD"}},
+                dev.ProjectConfig._build_tmpl_vars(
+                    test_root, "//world/example.com:project_foo"
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            {
+                "cwd": os.path.realpath(
+                    os.path.join(test_root, "world", "example.com", "project_foo")
+                ),
+                "provider": "local",
+            },
+            dev.ProjectConfig._render_config(
+                {u"cwd": u"$CWD", u"provider": u"local"},
+                dev.ProjectConfig._build_tmpl_vars(
+                    test_root, "//world/example.com:project_foo"
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            {
+                "testenv": [
+                    {
+                        "cwd": os.path.realpath(
+                            os.path.join(
+                                test_root, "world", "example.com", "project_foo"
+                            )
+                        )
+                    },
+                    "string",
+                ],
+                "provider": "local",
+            },
+            dev.ProjectConfig._render_config(
+                {"testenv": [{u"cwd": u"$CWD"}, "string"], u"provider": u"local"},
+                dev.ProjectConfig._build_tmpl_vars(
+                    test_root, "//world/example.com:project_foo"
+                ),
             ),
         )
 
@@ -212,12 +312,6 @@ class LocalRuntimeTests(unittest.TestCase):
         self.assertTrue(
             dev.LocalRuntimeProvider.setup(
                 location=os.path.join(test_data_dir, "local_runtime_example")
-            )
-        )
-
-        self.assertFalse(
-            dev.LocalRuntimeProvider.setup(
-                location=os.path.join(test_data_dir, "local_runtime_example_bad")
             )
         )
 
@@ -323,7 +417,8 @@ class DevRuntimeTests(unittest.TestCase):
         self.assertIn(
             'NAME="Alpine Linux"',
             dev.Runtime.run_command(
-                {"provider":"docker",
+                {
+                    "provider": "docker",
                     "image_name": image_name,
                     "location": os.path.join(
                         test_data_dir, "test_root", "runtimes", "test_runtime"
@@ -337,6 +432,62 @@ class DevRuntimeTests(unittest.TestCase):
         self.assertTrue(dev.DockerRuntimeProvider.rm_image({}, image_name))
 
         self.assertNotIn(image_name, dev.DockerRuntimeProvider.get_images({}))
+
+
+class DevCLITests(unittest.TestCase):
+    def dev_cmd(self, args):
+        dev_cmd = os.path.join(os.path.realpath(os.curdir), "dev.py")
+
+        try:
+            return subprocess.check_output([dev_cmd] + args, cwd=test_root)
+        except subprocess.CalledProcessError as x:
+            print(x.output)
+            raise x
+
+    def test_print_config(self):
+        self.assertEqual(
+            """{
+    "commands": {
+        "build": "docker build -t test_runtime .",
+        "test": "echo TEST NOT IMPLEMENTED"
+    },
+    "path": "test_runtime",
+    "runtime": "host"
+}
+""",
+            self.dev_cmd(["print_config", "//runtimes:test_runtime"]),
+        )
+
+    def test_build_command(self):
+        self.assertEqual(
+            "foo other\n",
+            self.dev_cmd(["build", "//world/example.com:project_foo_other"]),
+        )
+
+        self.assertEqual(
+            "bar %s %s\n"
+            % (
+                os.path.realpath(
+                    os.path.join(test_root, "world", "example.com", "project_bar")
+                ),
+                os.path.realpath(
+                    os.path.join(
+                        test_root,
+                        "build",
+                        "world",
+                        "example.com",
+                        "project_bar_var_test",
+                    )
+                ),
+            ),
+            self.dev_cmd(["build", "//world/example.com:project_bar_var_test"]),
+        )
+
+    def test_test_command(self):
+        self.assertEqual(
+            "TEST NOT IMPLEMENTED\n",
+            self.dev_cmd(["test", "//world/example.com:project_bar"]),
+        )
 
 
 if __name__ == "__main__":

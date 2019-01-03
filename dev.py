@@ -21,10 +21,15 @@ import json
 import re
 import string
 import shlex
+import sys
 
+from argparse import ArgumentParser
 from contextlib import closing
 
 RuntimeProviders = {}
+cli = ArgumentParser()
+subparsers = cli.add_subparsers(dest="subcommand")
+
 
 class DevRepoException(Exception):
     pass
@@ -86,7 +91,9 @@ class ProjectConfig(object):
         if not project_path.startswith("//"):
             raise DevRepoException("Project path must start with //")
 
-        parts = re.match("^//(?P<path>[^:]*)(?P<project>:[A-Za-z0-9_-]+)?$", project_path)
+        parts = re.match(
+            "^//(?P<path>[^:]*)(?P<project>:[A-Za-z0-9_-]+)?$", project_path
+        )
         if not parts:
             raise DevRepoException("Bad project path: %s" % project_path)
 
@@ -165,9 +172,16 @@ class ProjectConfig(object):
         config = ProjectConfig.lookup_config(dev_tree, project_path)
 
         vardict = {
-            "CWD": os.path.join(dev_tree, project_parent_dir, config["path"]),
-            "BUILDDIR": os.path.join(
-                dev_tree, "build", project_parent_dir[len(dev_tree) + 1 :], project_name
+            "CWD": os.path.realpath(
+                os.path.join(dev_tree, project_parent_dir, config["path"])
+            ),
+            "BUILDDIR": os.path.realpath(
+                os.path.join(
+                    dev_tree,
+                    "build",
+                    project_parent_dir[len(dev_tree) + 1 :],
+                    project_name,
+                )
             ),
         }
         return vardict
@@ -177,24 +191,42 @@ class ProjectConfig(object):
         return string.Template(raw_value).substitute(tmpl_vars)
 
     @staticmethod
+    def _render_config(val, tmpl_vars):
+        if isinstance(val, basestring):
+            return ProjectConfig._render_value(val, tmpl_vars)
+        elif isinstance(val, dict):
+            new_val = {}
+            for k, v in val.iteritems():
+                new_val[k] = ProjectConfig._render_config(val[k], tmpl_vars)
+            return new_val
+        elif isinstance(val, list):
+            new_val = []
+            for v in val:
+                new_val.append(ProjectConfig._render_config(v, tmpl_vars))
+            return new_val
+        else:
+            DevRepoException("Unrecognized value: %s" % val)
+
+    @staticmethod
     def run_project_command(dev_tree, project_path, command):
         proj_commands = ProjectConfig.get_commands(
-            ProjectConfig.lookup_config(dev_tree, project_path))
+            ProjectConfig.lookup_config(dev_tree, project_path)
+        )
 
         if command not in proj_commands:
             raise DevRepoException(
                 "Command %s doesn't exist for project %s" % (command, project_path)
             )
 
-        full_command = ProjectConfig._render_value(
-            proj_commands[command],
-            ProjectConfig._build_tmpl_vars(dev_tree, project_path),
-        )
+        tmpl_vars = ProjectConfig._build_tmpl_vars(dev_tree, project_path)
+
+        full_command = ProjectConfig._render_value(proj_commands[command], tmpl_vars)
         runtime_name = ProjectConfig.lookup_config(dev_tree, project_path)["runtime"]
 
-        return Runtime.run_command(
-            GlobalConfig.get_runtime_config(dev_tree, runtime_name), full_command
-        )
+        raw_runtime_config = GlobalConfig.get_runtime_config(dev_tree, runtime_name)
+        runtime_config = ProjectConfig._render_config(raw_runtime_config, tmpl_vars)
+
+        return Runtime.run_command(runtime_config, full_command)
 
 
 class Runtime(object):
@@ -248,13 +280,7 @@ class LocalRuntimeProvider(object):
 
     @staticmethod
     def setup(location):
-        if not (
-            os.path.exists(os.path.join(location, "bin"))
-            and os.path.isdir(os.path.join(location, "bin"))
-        ):
-            return False
-        else:
-            return True
+        return True
 
     @staticmethod
     def run_command(config, command):
@@ -262,7 +288,10 @@ class LocalRuntimeProvider(object):
             command = shlex.split(command)
 
         process = subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=config.get("cwd", None),
         )
 
         output = []
@@ -316,4 +345,78 @@ class DockerRuntimeProvider(Runtime):
         return output
 
 
+###############
+# CLI Section #
+###############
 
+
+def argument(*name_or_flags, **kwargs):
+    """Convenience function to properly format arguments to pass to the
+    subcommand decorator.
+    """
+    return (list(name_or_flags), kwargs)
+
+
+def subcommand(args=[], parent=subparsers):
+    """Decorator to define a new subcommand in a sanity-preserving way.
+    The function will be stored in the ``func`` variable when the parser
+    parses arguments so that it can be called directly like so::
+        args = cli.parse_args()
+        args.func(args)
+    Usage example::
+        @subcommand([argument("-d", help="Enable debug mode", action="store_true")])
+        def subcommand(args):
+            print(args)
+    Then on the command line::
+        $ python cli.py subcommand -d
+    """
+
+    def decorator(func):
+        parser = parent.add_parser(
+            func.__name__, help=func.__doc__.split("\n")[0], description=func.__doc__
+        )
+        for arg in args:
+            parser.add_argument(*arg[0], **arg[1])
+        parser.set_defaults(func=func)
+        return func
+
+    return decorator
+
+
+@subcommand([argument("project", default=None, nargs=1, help="project path")])
+def print_config(args):
+    """Print the configuration for the given project."""
+    root_path = Repo.get_dev_root(os.curdir)
+    project_path = args.project[0]
+
+    config = ProjectConfig.lookup_config(root_path, project_path)
+
+    print(json.dumps(config, sort_keys=True, indent=4, separators=(",", ": ")))
+
+
+@subcommand([argument("project", default=None, nargs=1, help="project path")])
+def build(args):
+    """Run the build command for the given project."""
+    root_path = Repo.get_dev_root(os.curdir)
+    project_path = args.project[0]
+
+    print(
+        "\n".join(ProjectConfig.run_project_command(root_path, project_path, "build"))
+    )
+
+@subcommand([argument("project", default=None, nargs=1, help="project path")])
+def test(args):
+    """Run the build command for the given project."""
+    root_path = Repo.get_dev_root(os.curdir)
+    project_path = args.project[0]
+
+    print(
+        "\n".join(ProjectConfig.run_project_command(root_path, project_path, "test"))
+    )
+
+if __name__ == "__main__":
+    args = cli.parse_args()
+    if args.subcommand is None:
+        cli.print_help()
+    else:
+        sys.exit(args.func(args))

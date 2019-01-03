@@ -10,6 +10,6 @@
   "project_bar": { "path": "project_bar", "commands": { "build": "echo bar" } },
   "project_bar_var_test": {
     "path": "project_bar",
-    "commands": { "build": "echo bar $CWD $BUILDDIR" }
+    "commands": { "build": "echo bar $CWD $BUILDDIR"}
   }
 }

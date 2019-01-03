@@ -8,10 +8,16 @@
       "container_name": "test_build_container",
       "project": "//runtimes:test_runtime"
     },
-    "bad_runtime": { "provider": "docker", "project": "//runtimes:does_not_exist" }
+    "bad_runtime": {
+      "provider": "docker",
+      "project": "//runtimes:does_not_exist"
+    }
   },
   "project_defaults": {
     "runtime": "host",
-    "commands": { "build": "bazel build $PROJECTPATH" }
+    "commands": {
+      "build": "bazel build $PROJECTPATH",
+      "test": "echo TEST NOT IMPLEMENTED"
+    }
   }
 }
