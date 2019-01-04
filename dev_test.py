@@ -9,7 +9,6 @@ import json
 
 from contextlib import closing
 
-
 test_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_data")
 test_root = os.path.join(test_data_dir, "test_root")
 

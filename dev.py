@@ -268,7 +268,7 @@ class Runtime(object):
                 try:
                     sock.bind(("localhost", port))
                 except IOError as e:
-                    if e.errno is 98:  ## Errorno 98 means address already bound
+                    if e.errno is 98:  # Errorno 98 means address already bound
                         continue
             ports.append(port)
             if len(ports) == count:
