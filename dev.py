@@ -211,9 +211,8 @@ class ProjectConfig(object):
 
     @staticmethod
     def run_project_command(dev_tree, project_path, command, verbose=None):
-        proj_commands = ProjectConfig.get_commands(
-            ProjectConfig.lookup_config(dev_tree, project_path)
-        )
+        project_config = ProjectConfig.lookup_config(dev_tree, project_path)
+        proj_commands = ProjectConfig.get_commands(project_config)
 
         if command not in proj_commands:
             raise DevRepoException(
@@ -223,13 +222,21 @@ class ProjectConfig(object):
         tmpl_vars = ProjectConfig._build_tmpl_vars(dev_tree, project_path)
 
         full_command = ProjectConfig._render_value(proj_commands[command], tmpl_vars)
-        runtime_name = ProjectConfig.lookup_config(dev_tree, project_path)["runtime"]
+        runtime_name = project_config["runtime"]
 
         raw_runtime_config = GlobalConfig.get_runtime_config(dev_tree, runtime_name)
         runtime_config = ProjectConfig._render_config(raw_runtime_config, tmpl_vars)
 
         if verbose != None:
             runtime_config["verbose"] = verbose
+
+        if (
+            "commands_runtime_config" in project_config
+            and command in project_config["commands_runtime_config"]
+        ):
+            runtime_config["extra_runtime_config"] = project_config[
+                "commands_runtime_config"
+            ][command]
 
         return Runtime.run_command(dev_tree, runtime_config, full_command)
 
@@ -304,7 +311,8 @@ class LocalRuntimeProvider(object):
         for stdout_line in iter(process.stdout.readline, ""):
             output.append(stdout_line.strip())
             if config.get("verbose", False):
-                print(stdout_line, end="")
+                print(stdout_line, end="")  # this, obviously could buffer
+                sys.stdout.flush()  # this, for example, doesn't seem to fix it
 
         process.stdout.close()
         return_code = process.wait()
@@ -338,8 +346,24 @@ class DockerRuntimeProvider(Runtime):
         if isinstance(command, basestring):
             command = shlex.split(command)
 
-        output = LocalRuntimeProvider.run_command(
-            config,
+        additional_args = []
+
+        if (
+            "extra_runtime_config" in config
+            and "expose_ports" in config["extra_runtime_config"]
+        ):
+            ports_to_expose = sorted(config["extra_runtime_config"]["expose_ports"])
+
+            host_ports = Runtime.find_open_ports(
+                ports_to_expose[0], len(ports_to_expose)
+            )
+            for (x, y) in zip(host_ports, ports_to_expose):
+                if x != y:
+                    print("Mapping port %s to %s" % (x, y))
+
+                additional_args.extend(["-p", "%s:%s" % (x, y)])
+
+        full_command = (
             [
                 "docker",
                 "run",
@@ -351,10 +375,13 @@ class DockerRuntimeProvider(Runtime):
                 config["workingdir"],
                 "--name",
                 "dev-tree-container",
-                config["image_name"],
             ]
-            + command,
+            + additional_args
+            + [config["image_name"]]
+            + command
         )
+
+        output = LocalRuntimeProvider.run_command(config, full_command)
 
         return output
 

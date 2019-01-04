@@ -9,6 +9,13 @@
     "path": "project_foo",
     "commands": { "build": "echo foo other" }
   },
+  "project_foo_with_extra_command_args": {
+    "path": "project_foo",
+    "commands": { "build": "echo foo other" },
+    "commands_runtime_config": {
+      "build": { "ignored_arg": "ignore" }
+    }
+  },
   "project_bar_no_commands": {
     "path": "project_bar"
   },

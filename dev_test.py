@@ -134,7 +134,8 @@ class DevConfigHelpersTest(unittest.TestCase):
                     "project_bar_var_test_verbose",
                     "project_foo",
                     "project_foo_other",
-                    "project_foo_other_verbose"
+                    "project_foo_other_verbose",
+                    "project_foo_with_extra_command_args",
                 ]
             ),
             dev.ProjectConfig.list_projects(test_root, "//world/example.com"),
@@ -294,6 +295,64 @@ class DevConfigHelpersTest(unittest.TestCase):
                 dev.ProjectConfig._build_tmpl_vars(
                     test_root, "//world/example.com:project_foo"
                 ),
+            ),
+        )
+
+        self.assertEqual(
+            {
+                "testenv": [
+                    {
+                        "cwd": os.path.realpath(
+                            os.path.join(
+                                test_root, "world", "example.com", "project_foo"
+                            )
+                        ),
+                        "isTrue": True,
+                    },
+                    "string",
+                ],
+                "provider": "local",
+            },
+            dev.ProjectConfig._render_config(
+                {
+                    "testenv": [{u"cwd": u"$CWD", u"isTrue": True}, "string"],
+                    u"provider": u"local",
+                },
+                dev.ProjectConfig._build_tmpl_vars(
+                    test_root, "//world/example.com:project_foo"
+                ),
+            ),
+        )
+
+        self.assertRaises(
+            dev.DevRepoException,
+            dev.ProjectConfig._render_config,
+            {"test": object()},
+            dev.ProjectConfig._build_tmpl_vars(
+                test_root, "//world/example.com:project_foo"
+            ),
+        )
+
+
+class ProjectConfigTests(unittest.TestCase):
+    def test_run_project_command_non_existant_command(self):
+
+        self.assertRaises(
+            dev.DevRepoException,
+            dev.ProjectConfig.run_project_command,
+            test_root,
+            "//world/example.com:project_foo",
+            "non_existant_command",
+        )
+
+    def test_run_project_command_setting_verbose(self):
+        self.assertEqual(
+            ["foo other"],
+            dev.ProjectConfig.run_project_command(
+                test_root,
+                "//world/example.com:project_foo_other_verbose",
+                "build",
+                verbose=False,
             ),
         )
 
