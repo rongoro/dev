@@ -1,0 +1,11 @@
+{
+  "dev": {
+    "runtime": "host",
+    "path": ".",
+    "commands": {
+      "init": "pwd",
+      "build": "pwd",
+      "test": "python dev_test.py"
+    }
+  }
+}

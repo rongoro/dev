@@ -1,0 +1,14 @@
+{
+  "version": "1",
+  "runtimes": {
+    "host": { "provider": "local", "cwd": "$CWD" },
+    "host-verbose": { "provider": "local", "cwd": "$CWD", "verbose": true }
+  },
+  "project_defaults": {
+    "runtime": "host",
+    "commands": {
+      "build": "echo BUILD NOT IMPLEMENTED",
+      "test": "echo TEST NOT IMPLEMENTED"
+    }
+  }
+}
