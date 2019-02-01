@@ -183,6 +183,7 @@ class ProjectConfig(object):
                     project_name,
                 )
             ),
+            "PROJNAME": project_name,
         }
         return vardict
 
