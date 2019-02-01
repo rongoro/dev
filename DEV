@@ -5,7 +5,8 @@
     "commands": {
       "init": "pwd",
       "build": "pwd",
-      "test": "python dev_test.py"
+      "test": "python dev_test.py",
+      "coverage": "py.test dev_test.py --capture=no --cov-report xml:cov.xml --cov $CWD"
     }
   }
 }
