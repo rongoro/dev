@@ -18,6 +18,7 @@ import subprocess
 import os
 import socket
 import json
+import pwd
 import re
 import string
 import shlex
@@ -384,6 +385,8 @@ class DockerRuntimeProvider(Runtime):
                     )
                     additional_args.extend(["-p", "%s:%s" % (local_port, port)])
 
+        pwinfo = pwd.getpwuid(os.getuid())
+
         full_command = (
             [
                 "docker",
@@ -392,6 +395,8 @@ class DockerRuntimeProvider(Runtime):
                 "--rm",
                 "--mount",
                 "src=%s,target=%s,type=bind" % (config["cwd"], config["workingdir"]),
+                "-u",
+                "%s:%s" % (pwinfo[2], pwinfo[3]),
                 "-w",
                 config["workingdir"],
                 "--name",
