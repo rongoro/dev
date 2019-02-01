@@ -167,7 +167,7 @@ class ProjectConfig(object):
         return proj_config["commands"]
 
     @staticmethod
-    def _build_tmpl_vars(dev_tree, project_path):
+    def _build_tmpl_vars(dev_tree, project_path, runtime_config):
         project_parent_dir, project_name = ProjectConfig._parse_project_path(
             dev_tree, project_path
         )
@@ -186,6 +186,12 @@ class ProjectConfig(object):
                 )
             ),
             "PROJNAME": project_name,
+            "WORKINGDIR": runtime_config.get(
+                "workingdir",
+                os.path.realpath(
+                    os.path.join(dev_tree, project_parent_dir, config["path"])
+                ),
+            ),
         }
         return vardict
 
@@ -222,13 +228,15 @@ class ProjectConfig(object):
                 "Command %s doesn't exist for project %s" % (command, project_path)
             )
 
-        tmpl_vars = ProjectConfig._build_tmpl_vars(dev_tree, project_path)
-
-        full_command = ProjectConfig._render_value(proj_commands[command], tmpl_vars)
         runtime_name = project_config["runtime"]
 
         raw_runtime_config = GlobalConfig.get_runtime_config(dev_tree, runtime_name)
+        tmpl_vars = ProjectConfig._build_tmpl_vars(
+            dev_tree, project_path, raw_runtime_config
+        )
+
         runtime_config = ProjectConfig._render_config(raw_runtime_config, tmpl_vars)
+        full_command = ProjectConfig._render_value(proj_commands[command], tmpl_vars)
 
         if verbose != None:
             runtime_config["verbose"] = verbose
