@@ -14,15 +14,15 @@ from __future__ import print_function
 
 import ConfigParser
 import copy
-import subprocess
-import os
-import socket
 import json
+import os
 import pwd
 import re
-import string
 import shlex
 import signal
+import socket
+import string
+import subprocess
 import sys
 
 from argparse import ArgumentParser
