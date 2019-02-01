@@ -21,6 +21,7 @@ import json
 import re
 import string
 import shlex
+import signal
 import sys
 
 from argparse import ArgumentParser
@@ -391,6 +392,14 @@ class DockerRuntimeProvider(Runtime):
             + [config["image_name"]]
             + command
         )
+
+        def kill_handler(signum, frame):
+            print("force killing container", file=sys.stderr)
+            LocalRuntimeProvider.run_command(
+                config, ["docker", "kill", "dev-tree-container"]
+            )
+
+        signal.signal(signal.SIGQUIT, kill_handler)
 
         output = LocalRuntimeProvider.run_command(config, full_command)
 
