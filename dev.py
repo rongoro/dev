@@ -501,6 +501,10 @@ def run(args):
 
     ProjectConfig.run_project_command(root_path, project_path, args.command[0])
 
+@subcommand()
+def findroot(args):
+    """Find the root of the Dev tree"""
+    print(Repo.get_dev_root(os.curdir))
 
 if __name__ == "__main__":
     args = cli.parse_args()
