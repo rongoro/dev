@@ -1,6 +1,6 @@
 {
   "dev": {
-    "runtime": "host",
+    "runtime": "host-verbose",
     "path": ".",
     "commands": {
       "init": "pwd",
