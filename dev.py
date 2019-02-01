@@ -274,6 +274,9 @@ class Runtime(object):
             ports.append(port)
             if len(ports) == count:
                 break
+        else:
+            raise DevRepoException("Ran out of available ports.")
+
         return ports
 
 
@@ -355,14 +358,21 @@ class DockerRuntimeProvider(Runtime):
         ):
             ports_to_expose = sorted(config["extra_runtime_config"]["expose_ports"])
 
-            host_ports = Runtime.find_open_ports(
-                ports_to_expose[0], len(ports_to_expose)
-            )
-            for (x, y) in zip(host_ports, ports_to_expose):
-                if x != y:
-                    print("Mapping port %s to %s" % (x, y))
+            used_ports = set()
 
-                additional_args.extend(["-p", "%s:%s" % (x, y)])
+            while len(ports_to_expose) != 0:
+                port = ports_to_expose[-1]
+                local_port = Runtime.find_open_ports(port, 1)[0]
+                if local_port in used_ports:
+                    continue
+                else:
+                    used_ports.add(local_port)
+                    ports_to_expose.pop()
+                    print(
+                        "Mapping local port %s to container port %s"
+                        % (local_port, port)
+                    )
+                    additional_args.extend(["-p", "%s:%s" % (local_port, port)])
 
         full_command = (
             [
