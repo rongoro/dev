@@ -41,14 +41,15 @@ class Repo(object):
     def get_dev_root(curdir):
         """Find the root of the Dev repo"""
 
-        working_dir = curdir
+        working_dir = os.path.realpath(curdir)
         while True:
+            if working_dir in ("/", ""):
+                raise Exception("Could not find DEV_ROOT")
+
             test_location = os.path.join(working_dir, "DEV_ROOT")
 
             if os.path.exists(test_location):
                 return working_dir
-            if working_dir == "/":
-                raise Exception("Could not find DEV_ROOT")
             working_dir = os.path.dirname(working_dir)
 
 
