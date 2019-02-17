@@ -14,13 +14,15 @@ from __future__ import print_function
 
 import ConfigParser
 import copy
-import subprocess
-import os
-import socket
 import json
+import os
+import pwd
 import re
-import string
 import shlex
+import signal
+import socket
+import string
+import subprocess
 import sys
 
 from argparse import ArgumentParser
@@ -40,14 +42,15 @@ class Repo(object):
     def get_dev_root(curdir):
         """Find the root of the Dev repo"""
 
-        working_dir = curdir
+        working_dir = os.path.realpath(curdir)
         while True:
+            if working_dir in ("/", ""):
+                raise Exception("Could not find DEV_ROOT")
+
             test_location = os.path.join(working_dir, "DEV_ROOT")
 
             if os.path.exists(test_location):
                 return working_dir
-            if working_dir == "/":
-                raise Exception("Could not find DEV_ROOT")
             working_dir = os.path.dirname(working_dir)
 
 
@@ -165,7 +168,7 @@ class ProjectConfig(object):
         return proj_config["commands"]
 
     @staticmethod
-    def _build_tmpl_vars(dev_tree, project_path):
+    def _build_tmpl_vars(dev_tree, project_path, runtime_config):
         project_parent_dir, project_name = ProjectConfig._parse_project_path(
             dev_tree, project_path
         )
@@ -182,6 +185,13 @@ class ProjectConfig(object):
                     project_parent_dir[len(dev_tree) + 1 :],
                     project_name,
                 )
+            ),
+            "PROJNAME": project_name,
+            "WORKINGDIR": runtime_config.get(
+                "workingdir",
+                os.path.realpath(
+                    os.path.join(dev_tree, project_parent_dir, config["path"])
+                ),
             ),
         }
         return vardict
@@ -219,13 +229,15 @@ class ProjectConfig(object):
                 "Command %s doesn't exist for project %s" % (command, project_path)
             )
 
-        tmpl_vars = ProjectConfig._build_tmpl_vars(dev_tree, project_path)
-
-        full_command = ProjectConfig._render_value(proj_commands[command], tmpl_vars)
         runtime_name = project_config["runtime"]
 
         raw_runtime_config = GlobalConfig.get_runtime_config(dev_tree, runtime_name)
+        tmpl_vars = ProjectConfig._build_tmpl_vars(
+            dev_tree, project_path, raw_runtime_config
+        )
+
         runtime_config = ProjectConfig._render_config(raw_runtime_config, tmpl_vars)
+        full_command = ProjectConfig._render_value(proj_commands[command], tmpl_vars)
 
         if verbose != None:
             runtime_config["verbose"] = verbose
@@ -273,6 +285,9 @@ class Runtime(object):
             ports.append(port)
             if len(ports) == count:
                 break
+        else:
+            raise DevRepoException("Ran out of available ports.")
+
         return ports
 
 
@@ -354,14 +369,23 @@ class DockerRuntimeProvider(Runtime):
         ):
             ports_to_expose = sorted(config["extra_runtime_config"]["expose_ports"])
 
-            host_ports = Runtime.find_open_ports(
-                ports_to_expose[0], len(ports_to_expose)
-            )
-            for (x, y) in zip(host_ports, ports_to_expose):
-                if x != y:
-                    print("Mapping port %s to %s" % (x, y))
+            used_ports = set()
 
-                additional_args.extend(["-p", "%s:%s" % (x, y)])
+            while len(ports_to_expose) != 0:
+                port = ports_to_expose[-1]
+                local_port = Runtime.find_open_ports(port, 1)[0]
+                if local_port in used_ports:
+                    continue
+                else:
+                    used_ports.add(local_port)
+                    ports_to_expose.pop()
+                    print(
+                        "Mapping local port %s to container port %s"
+                        % (local_port, port)
+                    )
+                    additional_args.extend(["-p", "%s:%s" % (local_port, port)])
+
+        pwinfo = pwd.getpwuid(os.getuid())
 
         full_command = (
             [
@@ -371,6 +395,8 @@ class DockerRuntimeProvider(Runtime):
                 "--rm",
                 "--mount",
                 "src=%s,target=%s,type=bind" % (config["cwd"], config["workingdir"]),
+                "-u",
+                "%s:%s" % (pwinfo[2], pwinfo[3]),
                 "-w",
                 config["workingdir"],
                 "--name",
@@ -380,6 +406,14 @@ class DockerRuntimeProvider(Runtime):
             + [config["image_name"]]
             + command
         )
+
+        def kill_handler(signum, frame):
+            print("force killing container", file=sys.stderr)
+            LocalRuntimeProvider.run_command(
+                config, ["docker", "kill", "dev-tree-container"]
+            )
+
+        signal.signal(signal.SIGQUIT, kill_handler)
 
         output = LocalRuntimeProvider.run_command(config, full_command)
 
@@ -480,6 +514,10 @@ def run(args):
 
     ProjectConfig.run_project_command(root_path, project_path, args.command[0])
 
+@subcommand()
+def findroot(args):
+    """Find the root of the Dev tree"""
+    print(Repo.get_dev_root(os.curdir))
 
 if __name__ == "__main__":
     args = cli.parse_args()

@@ -208,7 +208,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             dev.ProjectConfig._render_config(
                 {},
                 dev.ProjectConfig._build_tmpl_vars(
-                    test_root, "//world/example.com:project_foo"
+                    test_root, "//world/example.com:project_foo", {}
                 ),
             ),
         )
@@ -218,7 +218,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             dev.ProjectConfig._render_config(
                 {"foo": "bar"},
                 dev.ProjectConfig._build_tmpl_vars(
-                    test_root, "//world/example.com:project_foo"
+                    test_root, "//world/example.com:project_foo", {}
                 ),
             ),
         )
@@ -228,7 +228,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             dev.ProjectConfig._render_config(
                 {"foo": "bar", "baz": "test"},
                 dev.ProjectConfig._build_tmpl_vars(
-                    test_root, "//world/example.com:project_foo"
+                    test_root, "//world/example.com:project_foo", {}
                 ),
             ),
         )
@@ -238,7 +238,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             dev.ProjectConfig._render_config(
                 {"foo": "bar", "A": {"baz": "test"}},
                 dev.ProjectConfig._build_tmpl_vars(
-                    test_root, "//world/example.com:project_foo"
+                    test_root, "//world/example.com:project_foo", {}
                 ),
             ),
         )
@@ -255,7 +255,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             dev.ProjectConfig._render_config(
                 {"foo": "bar", "A": {"baz": "$CWD"}},
                 dev.ProjectConfig._build_tmpl_vars(
-                    test_root, "//world/example.com:project_foo"
+                    test_root, "//world/example.com:project_foo", {}
                 ),
             ),
         )
@@ -270,7 +270,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             dev.ProjectConfig._render_config(
                 {u"cwd": u"$CWD", u"provider": u"local"},
                 dev.ProjectConfig._build_tmpl_vars(
-                    test_root, "//world/example.com:project_foo"
+                    test_root, "//world/example.com:project_foo", {}
                 ),
             ),
         )
@@ -292,7 +292,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             dev.ProjectConfig._render_config(
                 {"testenv": [{u"cwd": u"$CWD"}, "string"], u"provider": u"local"},
                 dev.ProjectConfig._build_tmpl_vars(
-                    test_root, "//world/example.com:project_foo"
+                    test_root, "//world/example.com:project_foo", {}
                 ),
             ),
         )
@@ -318,7 +318,7 @@ class DevConfigHelpersTest(unittest.TestCase):
                     u"provider": u"local",
                 },
                 dev.ProjectConfig._build_tmpl_vars(
-                    test_root, "//world/example.com:project_foo"
+                    test_root, "//world/example.com:project_foo", {}
                 ),
             ),
         )
@@ -328,7 +328,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             dev.ProjectConfig._render_config,
             {"test": object()},
             dev.ProjectConfig._build_tmpl_vars(
-                test_root, "//world/example.com:project_foo"
+                test_root, "//world/example.com:project_foo", {}
             ),
         )
 
