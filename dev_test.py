@@ -158,6 +158,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             ),
         )
 
+    def test_get_project_with_no_commands(self):
         self.assertEqual(
             {"build": "bazel build $PROJECTPATH", "test": "echo TEST NOT IMPLEMENTED"},
             dev.ProjectConfig.get_commands(
@@ -167,9 +168,10 @@ class DevConfigHelpersTest(unittest.TestCase):
             ),
         )
 
+    def test_get_project_commands_with_empty_config(self):
         self.assertEqual({}, dev.ProjectConfig.get_commands({}))
 
-    def test_get_project_config(self):
+    def test_get_project_config_with_no_doubleslash_prefix(self):
         self.assertRaises(
             dev.DevRepoException,
             dev.ProjectConfig.lookup_config,
@@ -177,6 +179,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             "bad_path/foo_project:bad",
         )
 
+    def test_get_project_config_with_no_project_specified(self):
         self.assertRaises(
             dev.DevRepoException,
             dev.ProjectConfig.lookup_config,
@@ -184,6 +187,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             "//bad_project_path_with_no_colon",
         )
 
+    def test_get_project_config_with_non_existant_project(self):
         self.assertRaises(
             dev.DevRepoException,
             dev.ProjectConfig.lookup_config,
@@ -191,6 +195,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             "//world/example.com:project_not_exist",
         )
 
+    def test_get_project_config_with_full_path_and_valid_project(self):
         self.assertEqual(
             {
                 "path": "project_foo",
