@@ -91,8 +91,18 @@ class GlobalConfig(object):
 class ProjectConfig(object):
     @staticmethod
     def _parse_project_path(dev_tree, project_path, require_project_name=True):
+        if not dev_tree.startswith("/"):
+            raise DevRepoException(
+                "Dev tree path has to be an absolute path to a location inside a dev repo. Got %s instead."
+                % dev_tree
+            )
+
         if not project_path.startswith("//"):
-            raise DevRepoException("Project path must start with //")
+            root_path = Repo.get_dev_root(dev_tree)
+            path_prefix = dev_tree[len(root_path) :]
+            new_project_path = "/" + os.path.join(path_prefix, project_path)
+            dev_tree = root_path
+            project_path = new_project_path
 
         parts = re.match(
             "^//(?P<path>[^:]*)(?P<project>:[A-Za-z0-9_-]+)?$", project_path
@@ -475,7 +485,7 @@ def subcommand(args=[], parent=subparsers):
 @subcommand([argument("project", default=None, nargs=1, help="project path")])
 def print_config(args):
     """Print the configuration for the given project."""
-    root_path = Repo.get_dev_root(os.curdir)
+    root_path = os.path.realpath(os.curdir)
     project_path = args.project[0]
 
     config = ProjectConfig.lookup_config(root_path, project_path)
@@ -486,7 +496,7 @@ def print_config(args):
 @subcommand([argument("project", default=None, nargs=1, help="project path")])
 def build(args):
     """Run the build command for the given project."""
-    root_path = Repo.get_dev_root(os.curdir)
+    root_path = os.path.realpath(os.curdir)
     project_path = args.project[0]
 
     ProjectConfig.run_project_command(root_path, project_path, "build")
@@ -495,7 +505,7 @@ def build(args):
 @subcommand([argument("project", default=None, nargs=1, help="project path")])
 def test(args):
     """Run the test command for the given project."""
-    root_path = Repo.get_dev_root(os.curdir)
+    root_path = os.path.realpath(os.curdir)
     project_path = args.project[0]
 
     ProjectConfig.run_project_command(root_path, project_path, "test", verbose=True)
@@ -509,15 +519,17 @@ def test(args):
 )
 def run(args):
     """Run the test command for the given project."""
-    root_path = Repo.get_dev_root(os.curdir)
+    root_path = os.path.realpath(os.curdir)
     project_path = args.project[0]
 
     ProjectConfig.run_project_command(root_path, project_path, args.command[0])
+
 
 @subcommand()
 def findroot(args):
     """Find the root of the Dev tree"""
     print(Repo.get_dev_root(os.curdir))
+
 
 if __name__ == "__main__":
     args = cli.parse_args()
