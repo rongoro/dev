@@ -158,6 +158,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             ),
         )
 
+    def test_get_project_with_no_commands(self):
         self.assertEqual(
             {"build": "bazel build $PROJECTPATH", "test": "echo TEST NOT IMPLEMENTED"},
             dev.ProjectConfig.get_commands(
@@ -167,9 +168,10 @@ class DevConfigHelpersTest(unittest.TestCase):
             ),
         )
 
+    def test_get_project_commands_with_empty_config(self):
         self.assertEqual({}, dev.ProjectConfig.get_commands({}))
 
-    def test_get_project_config(self):
+    def test_get_project_config_with_no_doubleslash_prefix(self):
         self.assertRaises(
             dev.DevRepoException,
             dev.ProjectConfig.lookup_config,
@@ -177,6 +179,54 @@ class DevConfigHelpersTest(unittest.TestCase):
             "bad_path/foo_project:bad",
         )
 
+    def test_get_project_config_with_non_absolute_dev_tree_path(self):
+        self.assertRaisesRegexp(
+            dev.DevRepoException,
+            r"Dev tree path has to be an absolute path to a location inside a dev repo. Got bad_dev_tree_path instead\.",
+            dev.ProjectConfig.lookup_config,
+            "bad_dev_tree_path",
+            "//bad_path/foo_project:bad",
+        )
+
+    def test_get_project_config_with_relative_path(self):
+        self.assertEqual(
+            {
+                "path": "project_foo",
+                "commands": {"build": "echo foo", "test": "echo TEST NOT IMPLEMENTED"},
+                "runtime": "host",
+            },
+            dev.ProjectConfig.lookup_config(
+                os.path.join(test_root, "world"), "example.com:project_foo"
+            ),
+        )
+
+    def test_get_project_config_with_no_path_part_in_project_argument(self):
+        # This should simulate referring to a project in the local directory
+        self.assertEqual(
+            {
+                "path": "project_foo",
+                "commands": {"build": "echo foo", "test": "echo TEST NOT IMPLEMENTED"},
+                "runtime": "host",
+            },
+            dev.ProjectConfig.lookup_config(
+                os.path.join(test_root, "world", "example.com"), ":project_foo"
+            ),
+        )
+
+    def test_get_project_config_with_dot_path(self):
+        # This should simulate referring to a project in the local directory
+        self.assertEqual(
+            {
+                "path": "project_foo",
+                "commands": {"build": "echo foo", "test": "echo TEST NOT IMPLEMENTED"},
+                "runtime": "host",
+            },
+            dev.ProjectConfig.lookup_config(
+                os.path.join(test_root, "world", "example.com"), ".:project_foo"
+            ),
+        )
+
+    def test_get_project_config_with_no_project_specified(self):
         self.assertRaises(
             dev.DevRepoException,
             dev.ProjectConfig.lookup_config,
@@ -184,6 +234,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             "//bad_project_path_with_no_colon",
         )
 
+    def test_get_project_config_with_non_existant_project(self):
         self.assertRaises(
             dev.DevRepoException,
             dev.ProjectConfig.lookup_config,
@@ -191,6 +242,7 @@ class DevConfigHelpersTest(unittest.TestCase):
             "//world/example.com:project_not_exist",
         )
 
+    def test_get_project_config_with_full_path_and_valid_project(self):
         self.assertEqual(
             {
                 "path": "project_foo",
@@ -552,11 +604,11 @@ class DevRuntimeTests(unittest.TestCase):
 
 
 class DevCLITests(unittest.TestCase):
-    def dev_cmd(self, args):
+    def dev_cmd(self, args, cwd=test_root):
         dev_cmd = os.path.join(os.path.realpath(os.curdir), "dev.py")
 
         try:
-            return subprocess.check_output([dev_cmd] + args, cwd=test_root)
+            return subprocess.check_output([dev_cmd] + args, cwd=cwd)
         except subprocess.CalledProcessError as x:
             print(x.output)
             raise x
@@ -581,6 +633,16 @@ class DevCLITests(unittest.TestCase):
             self.dev_cmd(["build", "//world/example.com:project_foo_other_verbose"]),
         )
 
+    def test_build_command_with_relative_project_path(self):
+        self.assertEqual(
+            "foo other\n",
+            self.dev_cmd(
+                ["build", "example.com:project_foo_other_verbose"],
+                cwd=os.path.join(test_root, "world"),
+            ),
+        )
+
+    def test_build_command_with_template_substitutions(self):
         self.assertEqual(
             "bar %s %s\n"
             % (
