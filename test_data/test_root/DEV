@@ -1,0 +1,6 @@
+{
+  "world": {
+    "path": "world",
+    "commands": { "build": "echo world", "test": "echo test world" }
+  }
+}
