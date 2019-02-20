@@ -200,6 +200,30 @@ class DevConfigHelpersTest(unittest.TestCase):
             ),
         )
 
+    def test_get_project_config_with_no_path_part_in_project_argument_at_dev_root(self):
+        # This should simulate referring to a project in the local directory
+        self.assertEqual(
+            {
+                "path": "world",
+                "commands": {"build": "echo world", "test": "echo test world"},
+                "runtime": "host",
+            },
+            dev.ProjectConfig.lookup_config(test_root, ":world"),
+        )
+
+    def test_get_project_config_with_dot_path_part_in_project_argument_at_dev_root(
+        self
+    ):
+        # This should simulate referring to a project in the local directory
+        self.assertEqual(
+            {
+                "path": "world",
+                "commands": {"build": "echo world", "test": "echo test world"},
+                "runtime": "host",
+            },
+            dev.ProjectConfig.lookup_config(test_root, ".:world"),
+        )
+
     def test_get_project_config_with_no_path_part_in_project_argument(self):
         # This should simulate referring to a project in the local directory
         self.assertEqual(
@@ -638,6 +662,15 @@ class DevCLITests(unittest.TestCase):
             "foo other\n",
             self.dev_cmd(
                 ["build", "example.com:project_foo_other_verbose"],
+                cwd=os.path.join(test_root, "world"),
+            ),
+        )
+
+    def test_build_command_with_relative_project_path_and_full_run_argument(self):
+        self.assertEqual(
+            "foo other\n",
+            self.dev_cmd(
+                ["run", "build", "example.com:project_foo_other_verbose"],
                 cwd=os.path.join(test_root, "world"),
             ),
         )

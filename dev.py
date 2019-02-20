@@ -98,9 +98,15 @@ class ProjectConfig(object):
             )
 
         if not project_path.startswith("//"):
+            pre_path, proj_name = project_path.split(":")
+
+            full_proj_path = os.path.realpath(os.path.join(dev_tree, pre_path))
+
             root_path = Repo.get_dev_root(dev_tree)
-            path_prefix = dev_tree[len(root_path) :]
-            new_project_path = "/" + os.path.join(path_prefix, project_path)
+            path_prefix = full_proj_path[len(root_path) :].split("/")
+
+            new_project_path = "//%s:%s" % (os.path.join(*path_prefix), proj_name)
+            # print("HERE: ", dev_tree, project_path, root_path, new_project_path)
             dev_tree = root_path
             project_path = new_project_path
 
@@ -145,7 +151,13 @@ class ProjectConfig(object):
             dev_tree, project_path
         )
 
-        with open(os.path.join(project_parent_dir, "DEV")) as f:
+        dev_file_path = os.path.join(project_parent_dir, "DEV")
+        if not os.path.exists(dev_file_path):
+            raise DevRepoException(
+                "DEV file doesn't exist in given path: %s" % (dev_file_path)
+            )
+
+        with open(dev_file_path) as f:
             full_config = json.load(f)
 
         if project_name not in full_config:
@@ -521,7 +533,7 @@ def run(args):
     """Run the test command for the given project."""
     root_path = os.path.realpath(os.curdir)
     project_path = args.project[0]
-
+    # print("HERE:", root_path, project_path)
     ProjectConfig.run_project_command(root_path, project_path, args.command[0])
 
 
