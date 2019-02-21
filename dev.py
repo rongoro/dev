@@ -515,6 +515,18 @@ def build(args):
 
 
 @subcommand([argument("project", default=None, nargs=1, help="project path")])
+def list_commands(args):
+    """List commands available to project."""
+    root_path = os.path.realpath(os.curdir)
+    project_path = args.project[0]
+
+    project_config = ProjectConfig.lookup_config(root_path, project_path)
+    proj_commands = sorted(ProjectConfig.get_commands(project_config))
+
+    print(" ".join(proj_commands))
+
+
+@subcommand([argument("project", default=None, nargs=1, help="project path")])
 def test(args):
     """Run the test command for the given project."""
     root_path = os.path.realpath(os.curdir)

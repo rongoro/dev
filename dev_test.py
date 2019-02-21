@@ -701,6 +701,9 @@ class DevCLITests(unittest.TestCase):
             self.dev_cmd(["test", "//world/example.com:project_bar_verbose"]),
         )
 
+    def test_list_commands(self):
+        self.assertEqual("build test\n", self.dev_cmd(["list_commands", ":world"]))
+
 
 if __name__ == "__main__":
     unittest.main()
