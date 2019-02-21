@@ -106,7 +106,7 @@ class ProjectConfig(object):
             path_prefix = full_proj_path[len(root_path) :].split("/")
 
             new_project_path = "//%s:%s" % (os.path.join(*path_prefix), proj_name)
-            # print("HERE: ", dev_tree, project_path, root_path, new_project_path)
+
             dev_tree = root_path
             project_path = new_project_path
 
@@ -533,7 +533,7 @@ def run(args):
     """Run the test command for the given project."""
     root_path = os.path.realpath(os.curdir)
     project_path = args.project[0]
-    # print("HERE:", root_path, project_path)
+
     ProjectConfig.run_project_command(root_path, project_path, args.command[0])
 
 
