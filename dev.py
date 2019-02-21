@@ -183,9 +183,9 @@ class ProjectConfig(object):
         )
 
     @staticmethod
-    def list_projects(dev_tree, project_path):
+    def list_projects(dev_tree_path):
         project_parent_dir, _ = ProjectConfig._parse_project_path(
-            dev_tree, project_path, require_project_name=False
+            dev_tree_path, project_path="", require_project_name=False
         )
 
         with open(os.path.join(project_parent_dir, "DEV")) as f:
@@ -537,12 +537,12 @@ def list_commands(args):
     print(" ".join(proj_commands))
 
 
-@subcommand([argument("project", default=".", nargs="?", help="project path")])
+@subcommand()
 def list_projects(args):
     """List commands available to project."""
     path = os.path.realpath(os.curdir)
 
-    projects = ProjectConfig.list_projects(path, args.project)
+    projects = ProjectConfig.list_projects(path)
 
     print("\n".join(projects))
 

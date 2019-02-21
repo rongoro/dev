@@ -137,15 +137,9 @@ class DevConfigHelpersTest(unittest.TestCase):
                     "project_foo_with_extra_command_args",
                 ]
             ),
-            dev.ProjectConfig.list_projects(test_root, "//world/example.com"),
-        )
-
-        self.assertRaisesRegexp(
-            dev.DevRepoException,
-            r"Project should not be specified\.",
-            dev.ProjectConfig.list_projects,
-            test_root,
-            "//world/example.com:foo",
+            dev.ProjectConfig.list_projects(
+                os.path.join(test_root, "world/example.com")
+            ),
         )
 
     def test_get_project_commands(self):
