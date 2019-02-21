@@ -704,6 +704,9 @@ class DevCLITests(unittest.TestCase):
     def test_list_commands(self):
         self.assertEqual("build test\n", self.dev_cmd(["list_commands", ":world"]))
 
+    def test_list_projects(self):
+        self.assertEqual("world\n", self.dev_cmd(["list_projects"]))
+
 
 if __name__ == "__main__":
     unittest.main()
