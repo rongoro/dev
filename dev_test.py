@@ -664,7 +664,7 @@ class DevCLITests(unittest.TestCase):
         self.assertEqual(
             "foo other\n",
             self.dev_cmd(
-                ["run", "build", "example.com:project_foo_other_verbose"],
+                ["run", "example.com:project_foo_other_verbose", "build"],
                 cwd=os.path.join(test_root, "world"),
             ),
         )

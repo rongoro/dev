@@ -558,8 +558,8 @@ def test(args):
 
 @subcommand(
     [
-        argument("command", nargs=1, help="The command to run"),
         argument("project", default=None, nargs=1, help="project path"),
+        argument("command", nargs=1, help="The command to run"),
     ]
 )
 def run(args):
