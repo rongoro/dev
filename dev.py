@@ -106,7 +106,7 @@ class ProjectConfig(object):
             path_prefix = full_proj_path[len(root_path) :].split("/")
 
             new_project_path = "//%s:%s" % (os.path.join(*path_prefix), proj_name)
-            # print("HERE: ", dev_tree, project_path, root_path, new_project_path)
+
             dev_tree = root_path
             project_path = new_project_path
 
@@ -515,6 +515,18 @@ def build(args):
 
 
 @subcommand([argument("project", default=None, nargs=1, help="project path")])
+def list_commands(args):
+    """List commands available to project."""
+    root_path = os.path.realpath(os.curdir)
+    project_path = args.project[0]
+
+    project_config = ProjectConfig.lookup_config(root_path, project_path)
+    proj_commands = sorted(ProjectConfig.get_commands(project_config))
+
+    print(" ".join(proj_commands))
+
+
+@subcommand([argument("project", default=None, nargs=1, help="project path")])
 def test(args):
     """Run the test command for the given project."""
     root_path = os.path.realpath(os.curdir)
@@ -533,7 +545,7 @@ def run(args):
     """Run the test command for the given project."""
     root_path = os.path.realpath(os.curdir)
     project_path = args.project[0]
-    # print("HERE:", root_path, project_path)
+
     ProjectConfig.run_project_command(root_path, project_path, args.command[0])
 
 
