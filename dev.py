@@ -98,14 +98,25 @@ class ProjectConfig(object):
             )
 
         if not project_path.startswith("//"):
-            pre_path, proj_name = project_path.split(":")
+            if ":" in project_path:
+                pre_path, proj_name = project_path.split(":")
+            elif not require_project_name:
+                pre_path, proj_name = (project_path, None)
+            else:
+                raise DevRepoException(
+                    "Project name required but not found in project path. Recieved: %s"
+                    % project_path
+                )
 
             full_proj_path = os.path.realpath(os.path.join(dev_tree, pre_path))
 
             root_path = Repo.get_dev_root(dev_tree)
             path_prefix = full_proj_path[len(root_path) :].split("/")
 
-            new_project_path = "//%s:%s" % (os.path.join(*path_prefix), proj_name)
+            new_project_path = "//%s" % (os.path.join(*path_prefix))
+
+            if proj_name:
+                new_project_path = "%s:%s" % (new_project_path, proj_name)
 
             dev_tree = root_path
             project_path = new_project_path
@@ -524,6 +535,16 @@ def list_commands(args):
     proj_commands = sorted(ProjectConfig.get_commands(project_config))
 
     print(" ".join(proj_commands))
+
+
+@subcommand([argument("project", default=".", nargs="?", help="project path")])
+def list_projects(args):
+    """List commands available to project."""
+    path = os.path.realpath(os.curdir)
+
+    projects = ProjectConfig.list_projects(path, args.project)
+
+    print("\n".join(projects))
 
 
 @subcommand([argument("project", default=None, nargs=1, help="project path")])
