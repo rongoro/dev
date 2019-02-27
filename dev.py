@@ -191,7 +191,7 @@ class ProjectConfig(object):
         with open(os.path.join(project_parent_dir, "DEV")) as f:
             full_config = json.load(f)
 
-        return sorted(full_config.keys())
+        return sorted(map(lambda x: ':%s' % x, full_config.keys()))
 
     @staticmethod
     def get_commands(proj_config):
