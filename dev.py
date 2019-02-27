@@ -191,7 +191,7 @@ class ProjectConfig(object):
         with open(os.path.join(project_parent_dir, "DEV")) as f:
             full_config = json.load(f)
 
-        return sorted(map(lambda x: ':%s' % x, full_config.keys()))
+        return sorted(map(lambda x: ":%s" % x, full_config.keys()))
 
     @staticmethod
     def get_commands(proj_config):
@@ -357,8 +357,8 @@ class LocalRuntimeProvider(object):
 
         output = []
 
-        # This is very inefficient but necessary to have realtime verbose 
-        # output from the called function. This is especially noticeable when 
+        # This is very inefficient but necessary to have realtime verbose
+        # output from the called function. This is especially noticeable when
         # printing the success dots during test runs.
         line_buf = []
         while True:
