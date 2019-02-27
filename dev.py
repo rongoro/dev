@@ -183,15 +183,15 @@ class ProjectConfig(object):
         )
 
     @staticmethod
-    def list_projects(dev_tree, project_path):
+    def list_projects(dev_tree_path):
         project_parent_dir, _ = ProjectConfig._parse_project_path(
-            dev_tree, project_path, require_project_name=False
+            dev_tree_path, project_path="", require_project_name=False
         )
 
         with open(os.path.join(project_parent_dir, "DEV")) as f:
             full_config = json.load(f)
 
-        return sorted(full_config.keys())
+        return sorted(map(lambda x: ":%s" % x, full_config.keys()))
 
     @staticmethod
     def get_commands(proj_config):
@@ -352,15 +352,30 @@ class LocalRuntimeProvider(object):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             cwd=config.get("cwd", None),
+            bufsize=0,
         )
 
         output = []
 
-        for stdout_line in iter(process.stdout.readline, ""):
-            output.append(stdout_line.strip())
+        # This is very inefficient but necessary to have realtime verbose
+        # output from the called function. This is especially noticeable when
+        # printing the success dots during test runs.
+        line_buf = []
+        while True:
+            stdout_char = process.stdout.read(1)
+            if not stdout_char:
+                if line_buf:
+                    output.append("".join(line_buf).strip())
+                break
+            elif stdout_char == "\n":
+                output.append("".join(line_buf).strip())
+                line_buf = []
+            else:
+                line_buf.append(stdout_char)
+
             if config.get("verbose", False):
-                print(stdout_line, end="")  # this, obviously could buffer
-                sys.stdout.flush()  # this, for example, doesn't seem to fix it
+                sys.stdout.write(stdout_char)
+                sys.stdout.flush()
 
         process.stdout.close()
         return_code = process.wait()
@@ -537,12 +552,12 @@ def list_commands(args):
     print(" ".join(proj_commands))
 
 
-@subcommand([argument("project", default=".", nargs="?", help="project path")])
+@subcommand()
 def list_projects(args):
     """List commands available to project."""
     path = os.path.realpath(os.curdir)
 
-    projects = ProjectConfig.list_projects(path, args.project)
+    projects = ProjectConfig.list_projects(path)
 
     print("\n".join(projects))
 
@@ -558,8 +573,8 @@ def test(args):
 
 @subcommand(
     [
-        argument("command", nargs=1, help="The command to run"),
         argument("project", default=None, nargs=1, help="project path"),
+        argument("command", nargs=1, help="The command to run"),
     ]
 )
 def run(args):

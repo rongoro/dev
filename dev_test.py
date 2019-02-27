@@ -126,26 +126,20 @@ class DevConfigHelpersTest(unittest.TestCase):
         self.assertEqual(
             sorted(
                 [
-                    "project_bar",
-                    "project_bar_verbose",
-                    "project_bar_no_commands",
-                    "project_bar_var_test",
-                    "project_bar_var_test_verbose",
-                    "project_foo",
-                    "project_foo_other",
-                    "project_foo_other_verbose",
-                    "project_foo_with_extra_command_args",
+                    ":project_bar",
+                    ":project_bar_verbose",
+                    ":project_bar_no_commands",
+                    ":project_bar_var_test",
+                    ":project_bar_var_test_verbose",
+                    ":project_foo",
+                    ":project_foo_other",
+                    ":project_foo_other_verbose",
+                    ":project_foo_with_extra_command_args",
                 ]
             ),
-            dev.ProjectConfig.list_projects(test_root, "//world/example.com"),
-        )
-
-        self.assertRaisesRegexp(
-            dev.DevRepoException,
-            r"Project should not be specified\.",
-            dev.ProjectConfig.list_projects,
-            test_root,
-            "//world/example.com:foo",
+            dev.ProjectConfig.list_projects(
+                os.path.join(test_root, "world/example.com")
+            ),
         )
 
     def test_get_project_commands(self):
@@ -670,7 +664,7 @@ class DevCLITests(unittest.TestCase):
         self.assertEqual(
             "foo other\n",
             self.dev_cmd(
-                ["run", "build", "example.com:project_foo_other_verbose"],
+                ["run", "example.com:project_foo_other_verbose", "build"],
                 cwd=os.path.join(test_root, "world"),
             ),
         )
@@ -705,7 +699,7 @@ class DevCLITests(unittest.TestCase):
         self.assertEqual("build test\n", self.dev_cmd(["list_commands", ":world"]))
 
     def test_list_projects(self):
-        self.assertEqual("world\n", self.dev_cmd(["list_projects"]))
+        self.assertEqual(":world\n", self.dev_cmd(["list_projects"]))
 
 
 if __name__ == "__main__":
