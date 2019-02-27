@@ -352,15 +352,30 @@ class LocalRuntimeProvider(object):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             cwd=config.get("cwd", None),
+            bufsize=0,
         )
 
         output = []
 
-        for stdout_line in iter(process.stdout.readline, ""):
-            output.append(stdout_line.strip())
+        # This is very inefficient but necessary to have realtime verbose 
+        # output from the called function. This is especially noticeable when 
+        # printing the success dots during test runs.
+        line_buf = []
+        while True:
+            stdout_char = process.stdout.read(1)
+            if not stdout_char:
+                if line_buf:
+                    output.append("".join(line_buf).strip())
+                break
+            elif stdout_char == "\n":
+                output.append("".join(line_buf).strip())
+                line_buf = []
+            else:
+                line_buf.append(stdout_char)
+
             if config.get("verbose", False):
-                print(stdout_line, end="")  # this, obviously could buffer
-                sys.stdout.flush()  # this, for example, doesn't seem to fix it
+                sys.stdout.write(stdout_char)
+                sys.stdout.flush()
 
         process.stdout.close()
         return_code = process.wait()
