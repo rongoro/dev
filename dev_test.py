@@ -550,13 +550,18 @@ class DockerRuntimeTests(unittest.TestCase):
             ),
         )
 
+    def test_bad_docker_run(self):
+        # historical note: docker does partial matches so 'bad' can accidentally match a hex string
+        bad_image_name = 'bad_name'
+        self.assertNotIn(bad_image_name, dev.DockerRuntimeProvider.get_images({}))
+
         self.assertRaises(
             subprocess.CalledProcessError,
             dev.DockerRuntimeProvider.run_command,
             {
                 "provider": "docker",
                 "project": "//runtimes:test_runtime",
-                "image_name": "bad",
+                "image_name": bad_image_name, 
                 "cwd": os.path.realpath(
                     os.path.join(
                         os.path.dirname(__file__),
