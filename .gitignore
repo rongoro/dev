@@ -1,3 +1,9 @@
 *.pyc
 cov.xml
 .coverage
+.vscode
+build
+dev.build
+dev.dist
+dist
+dev.spec
